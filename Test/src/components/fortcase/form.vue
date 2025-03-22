@@ -1,12 +1,13 @@
 <template>
   <div class="form-container">
-    <Program2 class="program"></Program2>
+    <Program1 class="program"></Program1>
+   <!-- <Program2 class="program"></Program2> -->
   </div>
 </template>
 
 <script>
-// import Program1 from '@/components/fortcase/program1.vue'
-import Program2 from '@/components/fortcase/program2.vue'
+import Program1 from '@/components/fortcase/program1.vue'
+// import Program2 from '@/components/fortcase/program2.vue'
 export default {
   data() {
     return {
@@ -17,7 +18,8 @@ export default {
   },
   methods: {},
   components: {
-    Program2
+    Program1
+    // Program2
   }
 }
 </script>

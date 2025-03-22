@@ -198,6 +198,7 @@ export default {
   },
   created() {
     window.addEventListener('resize', () => {
+      if (this.pattern === 'overview') return
       this.graphHeight = (window.innerHeight - 57) * 0.9
       this.cardHeight = window.innerHeight - 93 - 20
     })

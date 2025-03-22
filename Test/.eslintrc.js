@@ -18,6 +18,10 @@ module.exports = {
         named: 'never',
         asyncArrow: 'never'
       }
-    ]
+    ],
+    indent: ['error', 2],
+    quotes: ['error', 'single'],
+    semi: ['error', 'never'],
+    'no-trailing-spaces': 'error'
   }
 }

@@ -56,46 +56,46 @@ export default {
     level() {
       let level = ''
       switch (this.waterQuulity) {
-        case 1:
-          level = 'Ⅰ'
-          break
-        case 2:
-          level = 'Ⅱ'
-          break
-        case 3:
-          level = 'Ⅲ'
-          break
-        case 4:
-          level = 'Ⅳ'
-          break
-        case 5:
-          level = 'Ⅴ'
-          break
-        default:
-          break
+      case 1:
+        level = 'Ⅰ'
+        break
+      case 2:
+        level = 'Ⅱ'
+        break
+      case 3:
+        level = 'Ⅲ'
+        break
+      case 4:
+        level = 'Ⅳ'
+        break
+      case 5:
+        level = 'Ⅴ'
+        break
+      default:
+        break
       }
       return level
     },
     color() {
       let color = ''
       switch (this.waterQuulity) {
-        case 1:
-          color = '#10B981'
-          break
-        case 2:
-          color = '#10B981'
-          break
-        case 3:
-          color = '#10B981'
-          break
-        case 4:
-          color = '#10B981'
-          break
-        case 5:
-          color = '#EF4444'
-          break
-        default:
-          break
+      case 1:
+        color = '#10B981'
+        break
+      case 2:
+        color = '#10B981'
+        break
+      case 3:
+        color = '#10B981'
+        break
+      case 4:
+        color = '#10B981'
+        break
+      case 5:
+        color = '#EF4444'
+        break
+      default:
+        break
       }
       return color
     }

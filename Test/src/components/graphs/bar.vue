@@ -268,11 +268,6 @@ export default {
   },
   mounted() {
     this.draw()
-  },
-  created() {
-    window.addEventListener('resize', () => {
-      this.graphHeight = window.innerHeight - 93
-    })
   }
 }
 </script>

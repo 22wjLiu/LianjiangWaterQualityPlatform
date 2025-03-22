@@ -225,21 +225,21 @@ export default {
     graphChange(index) {
       this.index = index
       switch (index) {
-        case 1:
-          this.imgList[0].src = 'line2.png'
-          this.imgList[1].src = 'bar1.png'
-          this.imgList[2].src = 'pie1.png'
-          break
-        case 2:
-          this.imgList[0].src = 'line1.png'
-          this.imgList[1].src = 'bar2.png'
-          this.imgList[2].src = 'pie1.png'
-          break
-        case 3:
-          this.imgList[0].src = 'line1.png'
-          this.imgList[1].src = 'bar1.png'
-          this.imgList[2].src = 'pie2.png'
-          break
+      case 1:
+        this.imgList[0].src = 'line2.png'
+        this.imgList[1].src = 'bar1.png'
+        this.imgList[2].src = 'pie1.png'
+        break
+      case 2:
+        this.imgList[0].src = 'line1.png'
+        this.imgList[1].src = 'bar2.png'
+        this.imgList[2].src = 'pie1.png'
+        break
+      case 3:
+        this.imgList[0].src = 'line1.png'
+        this.imgList[1].src = 'bar1.png'
+        this.imgList[2].src = 'pie2.png'
+        break
       }
       bus.$emit('graphChange', index)
     },

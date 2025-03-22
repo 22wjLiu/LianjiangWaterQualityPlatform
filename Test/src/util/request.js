@@ -1,7 +1,7 @@
 import axios from 'axios'
 
 const request = axios.create({
-  baseURL: 'http://www.shantouliu.site:3000/api'
+  baseURL: 'http://192.168.10.100:1017'
 })
 
 export default request

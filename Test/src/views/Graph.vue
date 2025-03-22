@@ -23,15 +23,15 @@ export default {
   created() {
     bus.$on('graphChange', val => {
       switch (val) {
-        case 1:
-          this.componentName = 'lineGraph'
-          break
-        case 2:
-          this.componentName = 'barGraph'
-          break
-        case 3:
-          this.componentName = 'pieGraph'
-          break
+      case 1:
+        this.componentName = 'lineGraph'
+        break
+      case 2:
+        this.componentName = 'barGraph'
+        break
+      case 3:
+        this.componentName = 'pieGraph'
+        break
       }
     })
   },

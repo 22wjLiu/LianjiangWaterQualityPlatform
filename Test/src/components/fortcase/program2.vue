@@ -90,38 +90,38 @@ export default {
             }
 
             switch (item) {
-              case 'Temperature':
-                this.dataset.forEach((item, index) => {
-                  item.水温 = data[index]
-                })
-                break
-              case 'PH':
-                this.dataset.forEach((item, index) => {
-                  item.pH = data[index]
-                })
-                break
-              case 'DO':
-                this.dataset.forEach((item, index) => {
-                  item.溶解氧 = data[index]
-                })
-                break
-              case 'Turbidity':
-                this.dataset.forEach((item, index) => {
-                  item.浊度 = data[index]
-                })
-                break
-              case 'EC':
-                this.dataset.forEach((item, index) => {
-                  item.电导率 = data[index]
-                })
-                break
-              case 'CODcr':
-                this.dataset.forEach((item, index) => {
-                  item.CODcr = data[index]
-                })
-                break
-              default:
-                break
+            case 'Temperature':
+              this.dataset.forEach((item, index) => {
+                item.水温 = data[index]
+              })
+              break
+            case 'PH':
+              this.dataset.forEach((item, index) => {
+                item.pH = data[index]
+              })
+              break
+            case 'DO':
+              this.dataset.forEach((item, index) => {
+                item.溶解氧 = data[index]
+              })
+              break
+            case 'Turbidity':
+              this.dataset.forEach((item, index) => {
+                item.浊度 = data[index]
+              })
+              break
+            case 'EC':
+              this.dataset.forEach((item, index) => {
+                item.电导率 = data[index]
+              })
+              break
+            case 'CODcr':
+              this.dataset.forEach((item, index) => {
+                item.CODcr = data[index]
+              })
+              break
+            default:
+              break
             }
             if (index === this.datasetList.length - 1) {
               this.btnMsg = '点击预测'

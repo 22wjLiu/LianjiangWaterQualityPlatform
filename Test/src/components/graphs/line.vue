@@ -13,6 +13,7 @@ export default {
   props: ['lineData', 'indexOfTime', 'labelList', 'index'],
   methods: {
     draw() {
+      console.log(this.labelList)
       this.graph = this.$refs.line
       this.myChart = this.$echarts.init(this.graph)
       const options = {

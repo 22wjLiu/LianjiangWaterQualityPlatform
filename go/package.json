@@ -1,0 +1,12 @@
+{
+  "name": "lianjiang",
+  "version": "1.0.0",
+  "description": "lianjiang project",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+    "scripts":"webpack"
+  },
+  "author": "liu",
+  "license": "ISC"
+}

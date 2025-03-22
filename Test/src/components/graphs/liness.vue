@@ -164,7 +164,6 @@ export default {
       getLineData(name, this.system, params, this.config)
         .then(res => {
           let data = res.data.data.resultArr
-
           // 将表中数值为 0 的字段赋值为 ''
           data = data.map(item => {
             Object.keys(item).forEach(key => {

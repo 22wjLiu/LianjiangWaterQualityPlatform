@@ -192,7 +192,7 @@ export default {
           if (this.submitStatus === 200) {
             Vue.prototype.$token = res.data.data.token
             localStorage.setItem('token', res.data.data.token)
-            this.$router.push('/Grpah')
+            this.$router.push('/grpah')
           } else {
             this.$message.warning(res.data.msg)
           }

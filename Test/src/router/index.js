@@ -45,24 +45,20 @@ const router = new VueRouter({
 router.beforeEach((to, from, next) => {
   const path = to.path
 
-  if (
-    path === '/graph' ||
-    path === '/map' ||
-    path === '/file' ||
-    path === '/overview'
-  ) {
+  if (path === '/graph' || path === '/map' || path === '/file' || path === '/overview') {
     if (localStorage.getItem('token')) {
       next()
     } else {
       Vue.prototype.$message.warning('请先登录')
       next('/login')
     }
-  } else if (path === '/backStage/user') {
-    Vue.prototype.$message.warning('对不起，您没有权限')
-    next(false)
   } else {
     next()
   }
+  // else if (path === '/backStage/user') {
+  // Vue.prototype.$message.warning('对不起，您没有权限')
+  // next(false)
+  // }
 })
 
 export default router

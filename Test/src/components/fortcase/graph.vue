@@ -118,7 +118,7 @@ export default {
         dataZoom: [
           {
             type: 'inside',
-            start: 0,
+            start: 0,s
             end: 100
           },
           {
