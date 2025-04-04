@@ -35,14 +35,17 @@ func CollectRoute(r *gin.Engine) *gin.Engine {
 	// TODO 用户的个人信息路由
 	r.GET("/personal", middleware.AuthMiddleware(), controller.PersonalPage)
 
-	// TODO 用户设置其它用户等级
-	r.PUT("/level/:id/:level", middleware.AuthMiddleware(), controller.Level)
+	// 获取用户列表
+	r.GET("/users/:start/:end", middleware.AuthMiddleware(), controller.Users)
 
-	// TODO 用户获取用户列表
-	r.GET("/users", middleware.AuthMiddleware(), controller.Users)
+	// 删除用户
+	r.DELETE("/user/:id", middleware.AuthMiddleware(), controller.DeleteUser)
 
-	// TODO 通过id和search字段查找某一用户的信息
-	r.GET("/user/:search/:id", middleware.AuthMiddleware(), controller.FindUser)
+	// 删除用户
+	r.DELETE("/users", middleware.AuthMiddleware(), controller.DeleteUsers)
+
+	// 更新用户信息（用户名、等级）
+	r.PUT("/user/:id", middleware.AuthMiddleware(), controller.UpdateUser)
 
 	// TODO 文件上传
 	r.POST("/upload/:system", middleware.AuthMiddleware(), controller.Upload)
@@ -74,11 +77,20 @@ func CollectRoute(r *gin.Engine) *gin.Engine {
 	// TODO 查看用户的文件上传、删除记录
 	r.GET("/history/file/:start/:end", middleware.AuthMiddleware(), controller.FileHistory)
 
-	// TODO 查看用户的数据上传、删除记录
+	// 删除用户的数据上传、删除记录
+	r.DELETE("/history/file", middleware.AuthMiddleware(), controller.DeleteFileHistory)
+
+	// 查看用户的数据上传、删除记录
 	r.GET("/history/data/:start/:end", middleware.AuthMiddleware(), controller.DataHistory)
+
+	// 删除用户的数据上传、删除记录
+	r.DELETE("/history/data", middleware.AuthMiddleware(), controller.DeleteDataHistory)
 
 	// TODO 查看用户的映射上传、删除记录
 	r.GET("/history/map/:start/:end", middleware.AuthMiddleware(), controller.MapHistory)
+
+	// 删除用户的数据上传、删除记录
+	r.DELETE("/history/map", middleware.AuthMiddleware(), controller.DeleteMapHistory)
 
 	// TODO 查看映射主键
 	r.GET("/map/:id", middleware.AuthMiddleware(), controller.ShowMapKeys)

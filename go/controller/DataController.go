@@ -122,7 +122,7 @@ func DeleteData(ctx *gin.Context) {
 	}
 	// TODO 创建数据历史记录
 	db.Create(&model.DataHistory{
-		UserId:      user.ID,
+		UserId:      user.Id,
 		Option:      "删除",
 		StartTime:   start,
 		EndTime:     end,

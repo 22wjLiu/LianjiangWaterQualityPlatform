@@ -106,7 +106,7 @@ func Login(ctx *gin.Context) {
 	// TODO 判断邮箱是否存在
 	var user model.User
 	DB.Where("email = ?", email).First(&user)
-	if user.ID == 0 {
+	if user.Id == 0 {
 		response.Response(ctx, 201, 201, nil, "用户不存在")
 		return
 	}
@@ -123,7 +123,10 @@ func Login(ctx *gin.Context) {
 		return
 	}
 	// TODO 返回结果
-	response.Success(ctx, gin.H{"token": token}, "登录成功")
+	response.Success(ctx, gin.H{
+		"token": token,
+		"level": user.Level, 
+	}, "登录成功")
 }
 
 // @title    Security

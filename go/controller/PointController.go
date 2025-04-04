@@ -355,14 +355,14 @@ func Upload(ctx *gin.Context) {
 	}
 	// TODO 创建文件历史记录
 	db.Create(&model.FileHistory{
-		UserId:   user.ID,
+		UserId:   user.Id,
 		FileName: file.Filename,
 		FilePath: "/" + sys.(string) + "/" + file.Filename,
 		Option:   "创建",
 	})
 	// TODO 创建数据历史记录
 	db.Create(&model.DataHistory{
-		UserId:      user.ID,
+		UserId:      user.Id,
 		Option:      "创建",
 		StartTime:   startTime.String(),
 		EndTime:     endTime.String(),
@@ -378,14 +378,20 @@ func Upload(ctx *gin.Context) {
 // @return   void
 func List(ctx *gin.Context) {
 
-	// TODO 取出请求
+	// 取出请求
 	path := ctx.DefaultQuery("path", "/")
 
-	// TODO 获得hour目录下的所有文件
+	// 获得hour目录下的所有文件
 	files, err := util.GetFiles(path)
 
 	if err != nil {
-		response.Fail(ctx, nil, "不存在该文件夹")
+		if path == "/month" {
+			response.Fail(ctx, nil, "未上传月度制文件")
+		} else if path == "/hour" {
+			response.Fail(ctx, nil, "未上传小时制文件")
+		} else {
+			response.Fail(ctx, nil, "无法处理该文件列表获取请求")
+		}
 		return
 	}
 
@@ -443,7 +449,7 @@ func DeleteFile(ctx *gin.Context) {
 
 	// TODO 创建文件历史记录
 	common.GetDB().Create(model.FileHistory{
-		UserId:   user.ID,
+		UserId:   user.Id,
 		FilePath: path,
 		Option:   "删除",
 	})

@@ -100,7 +100,7 @@ func CreateMapKey(ctx *gin.Context) {
 
 	// TODO 做历史记录
 	common.GetDB().Create(&model.MapHistory{
-		UserId: user.ID,
+		UserId: user.Id,
 		Id:     id,
 		Key:    key1,
 		Value:  fmt.Sprint(value),
@@ -151,7 +151,7 @@ func CreateMapValue(ctx *gin.Context) {
 
 	// TODO 做历史记录
 	common.GetDB().Create(&model.MapHistory{
-		UserId: user.ID,
+		UserId: user.Id,
 		Id:     id,
 		Key:    key,
 		Value:  fmt.Sprint(value),
@@ -201,7 +201,7 @@ func DeleteMapKey(ctx *gin.Context) {
 
 	// TODO 做历史记录
 	common.GetDB().Create(&model.MapHistory{
-		UserId: user.ID,
+		UserId: user.Id,
 		Id:     id,
 		Key:    key,
 		Value:  fmt.Sprint(value),

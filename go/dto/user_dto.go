@@ -8,9 +8,17 @@ import (
 
 // UserDto			定义了用户的基本信息
 type UserDto struct {
-	Name  string `json:"name"`  // 用户名称
-	Email string `json:"email"` // 邮箱
-	Level int    `json:"level"` // 权限等级
+	Id	  		uint   	`json:"id"`			// 用户ID
+	CreatedAt 	model.Time	`json:"created_at"`	// 创建时间
+	UpdatedAt 	model.Time	`json:"updated_at"`	// 更新时间
+	Name  		string 	`json:"name"`  		// 用户名
+	Email 		string 	`json:"email"` 		// 邮箱
+	Level 		int    	`json:"level"` 		// 权限等级
+}
+
+// BatchDeleteId	定义了要删除的一组用户ID
+type BatchDeleteId struct {
+	Ids []uint `json:"ids"`
 }
 
 // @title    ToUserDto

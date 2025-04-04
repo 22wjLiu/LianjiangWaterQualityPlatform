@@ -435,7 +435,7 @@ func VerifyEmailFormat(email string) bool {
 func IsEmailExist(db *gorm.DB, email string) bool {
 	var user model.User
 	db.Where("email = ?", email).First(&user)
-	return user.ID != 0
+	return user.Id != 0
 }
 
 // @title    isNameExist
@@ -445,7 +445,7 @@ func IsEmailExist(db *gorm.DB, email string) bool {
 func IsNameExist(db *gorm.DB, name string) bool {
 	var user model.User
 	db.Where("name = ?", name).First(&user)
-	return user.ID != 0
+	return user.Id != 0
 }
 
 var ctx context.Context = context.Background()

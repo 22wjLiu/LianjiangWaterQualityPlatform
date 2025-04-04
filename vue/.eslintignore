@@ -1,0 +1,6 @@
+node_modules/
+dist/
+public/
+src/assets
+*.config.js
+*.sh
