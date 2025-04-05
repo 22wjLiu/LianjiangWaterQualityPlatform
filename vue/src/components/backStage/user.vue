@@ -75,7 +75,7 @@
       </el-table-column>
       <el-table-column prop="level" label="等级" align="center" width="180">
       </el-table-column>
-      <el-table-column prop="operation" label="操作" align="center" width="220">
+      <el-table-column label="操作" align="center" width="220">
         <template slot-scope="scope">
           <el-button
             type="primary"
@@ -98,14 +98,14 @@
       <el-pagination
         @size-change="handleSizeChange"
         @current-change="handleCurrentChange"
-        :current-page="currentPage"
+        :current-page="searchList[4].value"
         :page-sizes="[25, 50, 75, 100]"
         :page-size="searchList[5].value"
         layout="total, sizes, prev, pager, next, jumper"
         :total="totalNum"
       >
       </el-pagination>
-      <el-button type="danger" size="small" @click="handleMutiDelete()"
+      <el-button type="danger" size="small" @click="handleDelete()"
         >批量删除</el-button
       >
     </div>
@@ -268,17 +268,6 @@ export default {
           value: 5,
         },
       ],
-      options: [
-        {
-          label: "创建",
-          type: "primary",
-        },
-        {
-          label: "删除",
-          type: "danger",
-        },
-      ],
-      currentPage: 1,
       pickerOptions: {
         shortcuts: [
           {
@@ -333,17 +322,6 @@ export default {
           this.$message.error(err.message);
         });
     },
-    getTagType(option) {
-      let type = "";
-      this.options.some((item) => {
-        if (item.label === option) {
-          type = item.value;
-          return true;
-        }
-        return false;
-      });
-      return type;
-    },
     handleSearch() {
       let params = "";
       this.searchList.forEach((item) => {
@@ -355,28 +333,18 @@ export default {
       params = params.slice(0, last);
       this.getTableData(params);
     },
-    handleDelete(id) {
-      deleteUser(id)
-        .then((res) => {
-          if (res.code == 200) {
-            this.handleSearch();
-            this.$message.success(res.msg);
-          } else {
-            this.$message.warning(res.msg);
-          }
-        })
-        .catch((err) => {
-          this.$message.error(err.message);
-        });
-    },
     handleSelectionChange(selected) {
       this.selection = selected;
     },
-    handleMutiDelete() {
+    handleDelete(id) {
       let ids = []
-      this.selection.forEach((item) => {
-        ids.push(item.id)
-      })
+      if (id) {
+        ids.push(parseInt(id))
+      } else {
+        this.selection.forEach((item) => {
+          ids.push(parseInt(item.id))
+        })
+      }
       deleteUsers(ids)
         .then((res) => {
           if (res.code == 200) {
@@ -392,11 +360,11 @@ export default {
     },
     handleSizeChange(val) {
       this.searchList[5].value = val;
-      this.getTableData();
+      this.handleSearch();
     },
     handleCurrentChange(val) {
       this.searchList[4].value = val;
-      this.getTableData();
+      this.handleSearch();
     },
     handleUpdate(id, name, level) {
       this.origin = {

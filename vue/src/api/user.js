@@ -20,14 +20,6 @@ export const updateUser = (id, body) => {
   })
 }
 
-export const deleteUser = (id) => {
-  return request.delete(
-    `/user/${id}`, {
-      needToken: true
-    }
-  );
-};
-
 export const deleteUsers = (ids) => {
   return request.delete('/users', {
     data: { ids },

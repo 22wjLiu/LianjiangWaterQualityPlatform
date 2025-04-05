@@ -14,13 +14,12 @@ export const getDataLog = (start, end, pramas) => {
   );
 };
 
-export const deleteDataLog = (pramas) => {
-  return request.delete(
-    `/history/data${pramas}`, {
-      needToken: true
-    }
-  );
-};
+export const deleteDataLog = (ids) => {
+  return request.delete('/history/data', {
+    data: { ids },
+    needToken: true,
+  })
+}
 
 export const getFileLog = (start, end, pramas) => {
   let path = "/history/file";
@@ -35,13 +34,12 @@ export const getFileLog = (start, end, pramas) => {
   );
 };
 
-export const deleteFileLog = (pramas) => {
-  return request.delete(
-    `/history/file${pramas}`, {
-      needToken: true
-    }
-  );
-};
+export const deleteFileLog = (ids) => {
+  return request.delete('/history/file', {
+    data: { ids },
+    needToken: true,
+  })
+}
 
 export const getMapLog = (start, end, pramas) => {
   let path = "/history/map";
@@ -56,10 +54,9 @@ export const getMapLog = (start, end, pramas) => {
   );
 };
 
-export const deleteMapLog = (pramas) => {
-  return request.delete(
-    `/history/map${pramas}`, {
-      needToken: true
-    }
-  );
-};
+export const deleteMapLog = (ids) => {
+  return request.delete('/history/map', {
+    data: { ids },
+    needToken: true,
+  })
+}

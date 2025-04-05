@@ -67,12 +67,12 @@
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="operation" label="操作" align="center" width="100">
+      <el-table-column label="操作" align="center" width="100">
         <template slot-scope="scope">
           <el-button
             type="danger"
             size="small"
-            @click="handleDelete(scope.row.created_at, scope.row.created_at)"
+            @click="handleDelete(scope.row.id)"
             >删除</el-button
           >
         </template>
@@ -84,14 +84,14 @@
       <el-pagination
         @size-change="handleSizeChange"
         @current-change="handleCurrentChange"
-        :current-page="currentPage"
+        :current-page="searchList[3].value"
         :page-sizes="[25, 50, 75, 100]"
         :page-size="searchList[4].value"
         layout="total, sizes, prev, pager, next, jumper"
         :total="totalNum"
       >
       </el-pagination>
-      <el-button type="danger" size="small" @click="handleMutiDelete()"
+      <el-button type="danger" size="small" @click="handleDelete()"
         >批量删除</el-button
       >
     </div>
@@ -150,7 +150,7 @@
 </style>
 
 <script>
-import { formatTime, strToISO } from "@/util/timeFormater.js";
+import { formatTime } from "@/util/timeFormater.js";
 import { getFileLog, deleteFileLog } from "@/api/history.js";
 export default {
   data() {
@@ -208,7 +208,6 @@ export default {
           type: "danger",
         },
       ],
-      currentPage: 1,
       pickerOptions: {
         shortcuts: [
           {
@@ -282,16 +281,19 @@ export default {
 
       this.getTableData(params);
     },
-    handleDelete(start, end) {
-      let params = "";
-      params += "?start=" + strToISO(start);
-      params += "&end=" + strToISO(end);
-      deleteFileLog(params)
+    handleDelete(id) {
+      let ids = []
+      if (id) {
+        ids.push(parseInt(id))
+      } else {
+        this.selection.forEach((item) => {
+          ids.push(parseInt(item.id))
+        })
+      }
+      deleteFileLog(ids)
         .then((res) => {
           if (res.code == 200) {
-            if(res.data.num > 0) {
-              this.handleSearch();
-            }
+            this.handleSearch();
             this.$message.success(res.msg);
           } else {
             this.$message.warning(res.msg);
@@ -304,18 +306,13 @@ export default {
     handleSelectionChange(selected) {
       this.selection = selected;
     },
-    handleMutiDelete() {
-      const end = this.selection[0].created_at;
-      const start = this.selection[this.selection.length - 1].created_at;
-      this.handleDelete(start, end);
-    },
     handleSizeChange(val) {
       this.searchList[4].value = val;
-      this.getTableData();
+      this.handleSearch();
     },
     handleCurrentChange(val) {
       this.searchList[3].value = val;
-      this.getTableData();
+      this.handleSearch();
     },
   },
   created() {

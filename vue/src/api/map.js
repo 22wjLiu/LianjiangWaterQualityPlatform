@@ -5,3 +5,15 @@ export const getMapData = () => {
     needToken: true 
   });
 };
+
+export const getMapTables = () => {
+  return request.get("/mapTables", { 
+    needToken: true 
+  });
+};
+
+export const getCurMaps = (pramas) => {
+  return request.get(`/curMaps${pramas}`, { 
+    needToken: true 
+  });
+};
