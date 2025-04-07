@@ -6,10 +6,12 @@ import (
 	"lianjiang/common"
 	"lianjiang/model"
 	"lianjiang/response"
+	"lianjiang/util"
+	"lianjiang/dto"
 	"time"
 	"strconv"
 
-    "gorm.io/gorm"
+  "gorm.io/gorm"
 
 	"github.com/gin-gonic/gin"
 )
@@ -34,14 +36,11 @@ func FileHistory(ctx *gin.Context) {
 
 	var fileHistories []model.FileHistory
 
-	// 时间格式定义
-	layout := "2006-01-02T15:04:05"
-
 	// 读取参数请求
 	start := ctx.Params.ByName("start")
 
 	if start != "" && start != "null" {
-		start, err := time.Parse(layout, start)
+		start, err := time.Parse(util.TimeFormat, start)
 		if err == nil{
 			db = db.Where("created_at >= ?", start)
 		} else {
@@ -53,7 +52,7 @@ func FileHistory(ctx *gin.Context) {
 	end := ctx.Params.ByName("end")
 
 	if end != "" && end != "null" {
-		end, err := time.Parse(layout, end)
+		end, err := time.Parse(util.TimeFormat, end)
 		if err == nil{
 			db = db.Where("created_at <= ?", end)
 		} else {
@@ -62,24 +61,24 @@ func FileHistory(ctx *gin.Context) {
 		}
 	}
 
-	applyFilter := func(field, value string) {
-		if value != "" {
-			db = db.Where("`" + field + "` = ?", value)
-		}
-	}
+	cond1 := map[string]interface{}{
+		"user_id": ctx.DefaultQuery("id", ""),
+		"option":  ctx.DefaultQuery("option", ""),
+	} 
 
-	applyFilter_2 := func(field, value string) {
-		if value != "" {
-			db = db.Where("`" + field + "` like ?", "%" + value + "%")
-		}
-	}
+	db = util.DbConditionsEqual(db ,cond1)
 
-	// 用户id
-	applyFilter("user_id", ctx.DefaultQuery("id", ""))
-	// 文件名
-	applyFilter_2("file_name", ctx.DefaultQuery("fileName", ""))
-	// 操作方式
-	applyFilter("option", ctx.DefaultQuery("option", ""))
+	cond2 := map[string]interface{}{
+		"file_name":  ctx.DefaultQuery("fileName", ""),
+	} 
+
+	db = util.DbConditionsLike(db ,cond2)
+
+	// 查询总数
+	var total int64
+	dbCount := db.Session(&gorm.Session{})
+	dbCount.Count(&total)
+
 	// 获取分页
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(ctx.DefaultQuery("pageSize", "25"))
@@ -96,11 +95,6 @@ func FileHistory(ctx *gin.Context) {
 		response.Fail(ctx, nil, "参数有误")
 		return
 	}
-
-	// 查询总数
-	var total int64
-	dbCount := db.Session(&gorm.Session{})
-	dbCount.Count(&total)
 		
 	// 返回分页数据
 	response.Success(ctx, gin.H{
@@ -129,14 +123,11 @@ func DataHistory(ctx *gin.Context) {
 
 	var dataHistories []model.DataHistory
 
-	// 时间格式定义
-	layout := "2006-01-02T15:04:05"
-
 	// 读取参数请求
 	start := ctx.Params.ByName("start")
 
 	if start != "" && start != "null" {
-		start, err := time.Parse(layout, start)
+		start, err := time.Parse(util.TimeFormat, start)
 		if err == nil{
 			db = db.Where("created_at >= ?", start)
 		} else {
@@ -148,7 +139,7 @@ func DataHistory(ctx *gin.Context) {
 	end := ctx.Params.ByName("end")
 
 	if end != "" && end != "null" {
-		end, err := time.Parse(layout, end)
+		end, err := time.Parse(util.TimeFormat, end)
 		if err == nil{
 			db = db.Where("created_at <= ?", end)
 		} else {
@@ -157,26 +148,25 @@ func DataHistory(ctx *gin.Context) {
 		}
 	}
 
-	applyFilter := func(field, value string) {
-		if value != "" {
-			db = db.Where("`" + field + "` = ?", value)
-		}
-	}
+	cond1 := map[string]interface{}{
+		"user_id": ctx.DefaultQuery("id", ""),
+		"option":  ctx.DefaultQuery("option", ""),
+		"system":  ctx.DefaultQuery("system", ""),
+	} 
 
-	applyFilter_2 := func(field, value string) {
-		if value != "" {
-			db = db.Where("`" + field + "` like ?", "%" + value + "%")
-		}
-	}
+	db = util.DbConditionsEqual(db ,cond1)
 
-	// 获取取出用户id
-	applyFilter("user_id", ctx.DefaultQuery("id", ""))
-	// 获取操作方式
-	applyFilter("option", ctx.DefaultQuery("option", ""))
-	// 获取站名
-	applyFilter_2("station_name", ctx.DefaultQuery("station_name", ""))
-	// 获取制度
-	applyFilter("system", ctx.DefaultQuery("system", ""))
+	cond2 := map[string]interface{}{
+		"station_name":  ctx.DefaultQuery("station_name", ""),
+	} 
+
+	db = util.DbConditionsLike(db ,cond2)
+
+	// 查询总数
+	var total int64
+	dbCount := db.Session(&gorm.Session{})
+	dbCount.Count(&total)
+
 	// 获取分页
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(ctx.DefaultQuery("pageSize", "25"))
@@ -193,11 +183,6 @@ func DataHistory(ctx *gin.Context) {
 		response.Fail(ctx, nil, "参数有误")
 		return
 	}
-
-	// 查询总数
-	var total int64
-	dbCount := db.Session(&gorm.Session{})
-	dbCount.Count(&total)
 	
 	// 返回分页数据
 	response.Success(ctx, gin.H{
@@ -222,18 +207,27 @@ func MapHistory(ctx *gin.Context) {
 		return
 	}
 
-	db := common.GetDB().Table("map_histories")
+	db := common.GetDB().
+		Table("map_histories").
+		Select(`
+		map_histories.created_at,
+		map_histories.id,
+		map_histories.user_id,
+		map_histories.key,
+		map_histories.value,
+		map_histories.option,
+		map_versions.version_name AS version_name
+	`).
+	Joins("LEFT JOIN map_versions ON map_histories.ver_id = map_versions.id")
+	
 
-	var mapHistories []model.MapHistory
-
-	// 时间格式定义
-	layout := "2006-01-02T15:04:05"
+	var mapHistories []dto.MapHistoryWithVerName
 
 	// 读取参数请求
 	start := ctx.Params.ByName("start")
 
 	if start != "" && start != "null" {
-		start, err := time.Parse(layout, start)
+		start, err := time.Parse(util.TimeFormat, start)
 		if err == nil{
 			db = db.Where("created_at >= ?", start)
 		} else {
@@ -245,7 +239,7 @@ func MapHistory(ctx *gin.Context) {
 	end := ctx.Params.ByName("end")
 
 	if end != "" && end != "null" {
-		end, err := time.Parse(layout, end)
+		end, err := time.Parse(util.TimeFormat, end)
 		if err == nil{
 			db = db.Where("created_at <= ?", end)
 		} else {
@@ -254,26 +248,26 @@ func MapHistory(ctx *gin.Context) {
 		}
 	}
 
-	applyFilter := func(field, value string) {
-		if value != "" {
-			db = db.Where("`" + field + "` = ?", value)
-		}
-	}
+	cond1 := map[string]interface{}{
+		"user_id": ctx.DefaultQuery("userId", ""),
+		"option":  ctx.DefaultQuery("option", ""),
+		"system":  ctx.DefaultQuery("system", ""),
+	} 
 
-	applyFilter_2 := func(field, value string) {
-		if value != "" {
-			db = db.Where("`" + field + "` like ?", "%" + value + "%")
-		}
-	}
+	db = util.DbConditionsEqual(db ,cond1)
 
-	// 获取ID
-	applyFilter("id", ctx.DefaultQuery("id", ""))
-	// 获取操作方式
-	applyFilter("option", ctx.DefaultQuery("option", ""))
-	// 获取用户ID
-	applyFilter("user_id", ctx.DefaultQuery("userId", ""))
-	// 获取键
-	applyFilter_2("key", ctx.DefaultQuery("key", ""))
+	cond2 := map[string]interface{}{
+		"version_name": ctx.DefaultQuery("version_name", ""),
+		"key":  ctx.DefaultQuery("key", ""),
+	} 
+
+	db = util.DbConditionsLike(db ,cond2)
+
+	// 查询总数
+	var total int64
+	dbCount := db.Session(&gorm.Session{})
+	dbCount.Count(&total)
+
 	// 获取分页
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(ctx.DefaultQuery("pageSize", "25"))
@@ -290,11 +284,6 @@ func MapHistory(ctx *gin.Context) {
 		response.Fail(ctx, nil, "参数有误")
 		return
 	}
-
-	// 查询总数
-	var total int64
-	dbCount := db.Session(&gorm.Session{})
-	dbCount.Count(&total)
 	
 	// 返回分页数据
 	response.Success(ctx, gin.H{
@@ -305,7 +294,7 @@ func MapHistory(ctx *gin.Context) {
 }
 
 // @title    DeleteFileHistory
-// @description   提供文件的操作记录
+// @description   删除一组文件的操作记录
 // @param    ctx *gin.Context       接收一个上下文
 // @return   void
 func DeleteFileHistory(ctx *gin.Context){
@@ -320,42 +309,26 @@ func DeleteFileHistory(ctx *gin.Context){
 		return
 	}
 
-	db := common.GetDB().Table("file_histories")
-
-	// 时间格式定义
-	layout := "2006-01-02T15:04:05"
-
-	// 读取参数请求
-	start := ctx.Query("start")
-
-	if start != "" {
-		start, err := time.Parse(layout, start)
-		if err == nil{
-			db = db.Where("created_at >= ?", start)
-		} else {
-			response.Fail(ctx, nil, "错误的数据日志开始时间")
-			return
-		}
-	}
-
-	end := ctx.Query("end")
-
-	if end != "" {
-		end, err := time.Parse(layout, end)
-		if err == nil{
-			db = db.Where("created_at <= ?", end)
-		} else {
-			response.Fail(ctx, nil, "错误的数据日志结束时间")
-			return
-		}
-	}
-
-	result := db.Delete(nil)
-
-	if result.Error != nil {
-		response.Fail(ctx, nil, "删除失败: "+result.Error.Error())
+	// 解析请求体
+	var resq dto.BatchDeleteId
+	if err := ctx.ShouldBindJSON(&resq); err != nil {
+		response.Fail(ctx, nil, "请求体参数解析错误")
 		return
 	}
+
+	// 开启事务
+	db := common.GetDB()
+	tx := db.Begin()
+	
+	result := tx.Where("id IN ?", resq.Ids).Delete(&model.FileHistory{})
+
+	if result.Error != nil {
+		tx.Rollback()
+		response.Fail(ctx, nil, "删除失败，已撤销")
+		return
+	}
+	
+	tx.Commit()
 
 	response.Success(ctx, gin.H{"num": result.RowsAffected}, "删除成功")
 }
@@ -376,42 +349,26 @@ func DeleteDataHistory(ctx *gin.Context){
 		return
 	}
 
-	db := common.GetDB().Table("data_histories")
-
-	// 时间格式定义
-	layout := "2006-01-02T15:04:05"
-
-	// 读取参数请求
-	start := ctx.Query("start")
-
-	if start != "" {
-		start, err := time.Parse(layout, start)
-		if err == nil{
-			db = db.Where("created_at >= ?", start)
-		} else {
-			response.Fail(ctx, nil, "错误的数据日志开始时间")
-			return
-		}
-	}
-
-	end := ctx.Query("end")
-
-	if end != "" {
-		end, err := time.Parse(layout, end)
-		if err == nil{
-			db = db.Where("created_at <= ?", end)
-		} else {
-			response.Fail(ctx, nil, "错误的数据日志结束时间")
-			return
-		}
-	}
-
-	result := db.Delete(nil)
-
-	if result.Error != nil {
-		response.Fail(ctx, nil, "删除失败: "+result.Error.Error())
+	// 解析请求体
+	var resq dto.BatchDeleteId
+	if err := ctx.ShouldBindJSON(&resq); err != nil {
+		response.Fail(ctx, nil, "请求体参数解析错误")
 		return
 	}
+
+	// 开启事务
+	db := common.GetDB()
+	tx := db.Begin()
+	
+	result := tx.Where("id IN ?", resq.Ids).Delete(&model.DataHistory{})
+
+	if result.Error != nil {
+		tx.Rollback()
+		response.Fail(ctx, nil, "删除失败，已撤销")
+		return
+	}
+	
+	tx.Commit()
 
 	response.Success(ctx, gin.H{"num": result.RowsAffected}, "删除成功")
 }
@@ -432,42 +389,26 @@ func DeleteMapHistory(ctx *gin.Context){
 		return
 	}
 
-	db := common.GetDB().Table("map_histories")
-
-	// 时间格式定义
-	layout := "2006-01-02T15:04:05"
-
-	// 读取参数请求
-	start := ctx.Query("start")
-
-	if start != "" {
-		start, err := time.Parse(layout, start)
-		if err == nil{
-			db = db.Where("created_at >= ?", start)
-		} else {
-			response.Fail(ctx, nil, "错误的数据日志开始时间")
-			return
-		}
-	}
-
-	end := ctx.Query("end")
-
-	if end != "" {
-		end, err := time.Parse(layout, end)
-		if err == nil{
-			db = db.Where("created_at <= ?", end)
-		} else {
-			response.Fail(ctx, nil, "错误的数据日志结束时间")
-			return
-		}
-	}
-
-	result := db.Delete(nil)
-
-	if result.Error != nil {
-		response.Fail(ctx, nil, "删除失败: "+result.Error.Error())
+	// 解析请求体
+	var resq dto.BatchDeleteId
+	if err := ctx.ShouldBindJSON(&resq); err != nil {
+		response.Fail(ctx, nil, "请求体参数解析错误")
 		return
 	}
+
+	// 开启事务
+	db := common.GetDB()
+	tx := db.Begin()
+	
+	result := tx.Where("id IN ?", resq.Ids).Delete(&model.MapHistory{})
+
+	if result.Error != nil {
+		tx.Rollback()
+		response.Fail(ctx, nil, "删除失败，已撤销")
+		return
+	}
+	
+	tx.Commit()
 
 	response.Success(ctx, gin.H{"num": result.RowsAffected}, "删除成功")
 }

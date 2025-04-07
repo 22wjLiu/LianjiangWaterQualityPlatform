@@ -32,14 +32,8 @@ func CollectRoute(r *gin.Engine) *gin.Engine {
 	// TODO 用户的登录路由
 	r.POST("/login", controller.Login)
 
-	// TODO 用户的个人信息路由
-	r.GET("/personal", middleware.AuthMiddleware(), controller.PersonalPage)
-
 	// 获取用户列表
 	r.GET("/users/:start/:end", middleware.AuthMiddleware(), controller.Users)
-
-	// 删除用户
-	r.DELETE("/user/:id", middleware.AuthMiddleware(), controller.DeleteUser)
 
 	// 删除用户
 	r.DELETE("/users", middleware.AuthMiddleware(), controller.DeleteUsers)
@@ -62,17 +56,15 @@ func CollectRoute(r *gin.Engine) *gin.Engine {
 	// TODO 数据获取
 	r.GET("/data/:name/:system", middleware.AuthMiddleware(), controller.ShowData)
 
-	// TODO 获取一对多的行字段
-	r.GET("/data/rowall/:key/:name", middleware.AuthMiddleware(), controller.ShowRowAllData)
+	// // TODO 获取一对多的行字段
+	// r.GET("/data/rowall/:key/:name", middleware.AuthMiddleware(), controller.ShowRowAllData)
 
-	// TODO 获取一对一的行字段
-	r.GET("/data/rowone/:key/:name", middleware.AuthMiddleware(), controller.ShowRowOneData)
+	// // TODO 获取一对一的行字段
+	// r.GET("/data/rowone/:key/:name", middleware.AuthMiddleware(), controller.ShowRowOneData)
 
 	// TODO 数据删除
-	r.DELETE("/data/:time/:start/:end", middleware.AuthMiddleware(), controller.DeleteData)
 
 	// TODO 数据恢复
-	r.PUT("/data/:start/:end", middleware.AuthMiddleware(), controller.RecoverData)
 
 	// TODO 查看用户的文件上传、删除记录
 	r.GET("/history/file/:start/:end", middleware.AuthMiddleware(), controller.FileHistory)
@@ -92,7 +84,13 @@ func CollectRoute(r *gin.Engine) *gin.Engine {
 	// 删除用户的数据上传、删除记录
 	r.DELETE("/history/map", middleware.AuthMiddleware(), controller.DeleteMapHistory)
 
-	// TODO 查看映射主键
+	// 查询映射类型
+	r.GET("/mapTables", middleware.AuthMiddleware(), controller.ShowMapTables)
+
+	// 查询当前映射表
+	r.GET("/curMaps", middleware.AuthMiddleware(), controller.ShowCurrentMaps)
+
+	// 查询映射主键
 	r.GET("/map/:id", middleware.AuthMiddleware(), controller.ShowMapKeys)
 
 	// TODO 查看映射键的值
@@ -107,10 +105,8 @@ func CollectRoute(r *gin.Engine) *gin.Engine {
 	// TODO 删除映射
 	r.DELETE("/map/:id/:key", middleware.AuthMiddleware(), controller.DeleteMapKey)
 
-	// TODO 查看映射备份
-	r.GET("/map/backup/:id/:start/:end", middleware.AuthMiddleware(), controller.BackupMap)
-
-	// TODO 预测
-	r.GET("/forecast", middleware.AuthMiddleware(), controller.Forecast)
+	// // TODO 预测
+	// r.GET("/forecast", middleware.AuthMiddleware(), controller.Forecast)
+	
 	return r
 }

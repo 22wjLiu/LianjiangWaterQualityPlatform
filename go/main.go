@@ -3,13 +3,11 @@
 package main
 
 import (
-	"fmt"
 	"lianjiang/common"
-	"lianjiang/model"
 	"lianjiang/util"
-	"log"
 	"os"
 	"time"
+	"log"
 
 	"github.com/gin-gonic/gin"
 	_ "github.com/go-sql-driver/mysql"
@@ -21,41 +19,62 @@ import (
 // @param     void			没有入参
 // @return    void			没有回参
 func main() {
+	// 初始化后端配置
 	InitConfig()
+	
+	// 初始化数据库
 	common.InitDB()
 	client0 := common.InitRedis(0)
 	defer client0.Close()
+
+	// 初始化路由
 	r := gin.Default()
 	r = CollectRoute(r)
-	port := viper.GetString("server.port")
-	// TODO 定时备份映射表
+
+	// 初始化映射表
+	log.Println("开始初始化映射表...")
+	if err := util.InitMapMap(); err != nil {
+		log.Fatal("初始化映射表失败：", err)
+	}
+	log.Println("初始化映射表成功")
+
+	// 定时备份映射表
 	go func() {
 		for {
-			log.Println("备份映射表正在进行中...")
-			// TODO 执行备份功能
-			BackUp()
-			log.Println("备份映射表完成...")
+			log.Println("开始备份映射表...")
 
+			// 执行备份功能
+			if err := util.BackUpSql(util.MapSqlPath, util.MapSqlFiles); err != nil {
+				log.Println(err)
+			} else {
+				log.Println("备份映射表完成")
+			}
+			
+			// 计算下次备份时间（每天凌晨4:00备份）
 			now := time.Now()
-
-			// TODO 计算下一个4:00
 			next := now.Add(time.Hour * 24)
+
 			next = time.Date(next.Year(), next.Month(), next.Day(), 4, 00, 0, 0, next.Location())
 
-                        sleepDuration := next.Sub(now)
+            sleepDuration := next.Sub(now)
 
 			hours := sleepDuration / time.Hour
-                        minutes := (sleepDuration % time.Hour) / time.Minute
+            minutes := (sleepDuration % time.Hour) / time.Minute
 			seconds := (sleepDuration % time.Minute) / time.Second
 
 			log.Printf("下次备份时间: %s (等待 %02d时%02d分%02d秒)\n", next.Format("2006-01-02 15:04:05"), hours, minutes, seconds)
+
 			time.Sleep(next.Sub(now))
 		}
 	}()
+
+	// 开启服务
+	port := viper.GetString("server.port")
 	if port != "" {
-		log.Panic(r.Run(":" + port))
+		log.Fatal(r.Run(":" + port))
+	} else {
+		log.Fatal(r.Run())
 	}
-	log.Panic(r.Run())
 }
 
 // @title    InitConfig
@@ -69,29 +88,13 @@ func InitConfig() {
 	}
 
 	viper.SetConfigName("application")
-	viper.SetConfigType("yml")
+	viper.SetConfigName("2")
+	// viper.SetConfigType("yml")
 	viper.AddConfigPath(workDir + "/config")
+
+	// 读取配置文件，如果发生错误，终止程序
 	err = viper.ReadInConfig()
-	// TODO 如果发生错误，终止程序
 	if err != nil {
 		log.Panicf("读取配置失败: %v", err)
-	}
-}
-
-// @title    BackUp
-// @description   备份映射文件
-// @param     void			没有入参
-// @return    void			没有回参
-func BackUp() {
-	db := common.GetDB()
-	for id, v := range util.MapMap {
-		for _, key := range v.Keys() {
-			value, _ := v.Get(key)
-			db.Create(&model.MapBackup{
-				Table: id,
-				Key:   key,
-				Value: fmt.Sprint(value),
-			})
-		}
 	}
 }

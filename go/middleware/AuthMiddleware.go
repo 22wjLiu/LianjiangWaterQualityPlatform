@@ -20,7 +20,7 @@ func AuthMiddleware() gin.HandlerFunc {
 		// 获取 authorization header
 		tokenString := ctx.GetHeader("Authorization")
 
-		fmt.Print("请求token", tokenString)
+		fmt.Println("请求token", tokenString)
 
 		if tokenString == "" {
 			ctx.JSON(201, gin.H{

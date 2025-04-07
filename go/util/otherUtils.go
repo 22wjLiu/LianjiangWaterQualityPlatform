@@ -1,11 +1,12 @@
-// @Title  util
-// @Description  收集各种需要使用的工具函数
+// @Title  commonUtils
+// @Description  各种需要使用的其他工具函数
 package util
 
 import (
 	"context"
 	"crypto/tls"
 	"encoding/csv"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"lianjiang/common"
@@ -18,12 +19,7 @@ import (
 	"path"
 	"regexp"
 	"strconv"
-	"strings"
 	"time"
-	"unicode"
-
-	Map "github.com/orcaman/concurrent-map"
-
 	"os"
 
 	"github.com/tealeg/xlsx"
@@ -34,158 +30,37 @@ import (
 	"gorm.io/gorm"
 )
 
-// 点集字段映射表
-var PointMap Map.ConcurrentMap = Map.New()
+// 时间格式定义
+var TimeFormat = "2006-01-02T15:04:05"
 
-// 行唯一字段映射表
-var RowOneMap Map.ConcurrentMap = Map.New()
+// 可读时间格式定义
+var ReadableTimeFormat = "2006-01-02 15:04:05"
 
-// 行多字段映射表
-var RowAllMap Map.ConcurrentMap = Map.New()
-
-// 制度映射表
-var SysMap Map.ConcurrentMap = Map.New()
-
-// 文件内容的标记点映射表
-var OptMap Map.ConcurrentMap = Map.New()
-
-// 站名注册表
-var StationMap Map.ConcurrentMap = Map.New()
-
-// 数据注册表
-var DataMap Map.ConcurrentMap = Map.New()
-
-// 用户字段映射表
-var UserMap = map[string]string{
-	"名称": "name",
-	"邮箱": "email",
-	"ID": "id",
-}
-
-// 映射表
-var MapMap = map[string]*Map.ConcurrentMap{
-	"列字段映射":    &PointMap,
-	"行字段一对多映射": &RowAllMap,
-	"行字段一对一映射": &RowOneMap,
-	"时间制映射":    &SysMap,
-	"标记映射":     &OptMap,
-	"站名映射":     &StationMap,
-	"数据符号映射":   &DataMap,
-}
-
-// 时间映射表
-var TimeMap = map[string]string{
-	"创建日期": "created_at",
-	"记录日期": "time",
-	"删除日期": "deleted_at",
-}
-
-func init() {
-	// TODO 初始化点集字段映射表
-	PointMap.Set("监测断面", "StationName")
-	PointMap.Set("监测指标", "Time")
-	PointMap.Set("监测时间", "Time")
-	PointMap.Set("时间", "Time")
-	PointMap.Set("水温", "Temperature")
-	PointMap.Set("pH", "PH")
-	PointMap.Set("化学需氧量", "Cod")
-	PointMap.Set("五日生化需氧量", "FiveDaysNiochemicalOxygenDemand")
-	PointMap.Set("硒", "Se")
-	PointMap.Set("砷", "As")
-	PointMap.Set("汞", "Hg")
-	PointMap.Set("氟化物", "Fluoride")
-	PointMap.Set("石油类", "Petroleum")
-	PointMap.Set("粪大肠菌群", "FecalColiform")
-	PointMap.Set("溶解氧", "DO")
-	PointMap.Set("电导率", "EC")
-	PointMap.Set("浊度", "Turbidity")
-	PointMap.Set("高锰酸盐指数", "CODMII")
-	PointMap.Set("氨氮", "NH_N")
-	PointMap.Set("总磷", "TP")
-	PointMap.Set("总氮", "TN")
-	PointMap.Set("CODcr", "CODcr")
-	PointMap.Set("氰化物", "CN")
-	PointMap.Set("挥发酚", "VolatilePenol")
-	PointMap.Set("六价铬", "Cr")
-	PointMap.Set("铜", "Cu")
-	PointMap.Set("锌", "Zn")
-	PointMap.Set("铅", "Pb")
-	PointMap.Set("镉", "Cd")
-	PointMap.Set("阴离子表面活性剂", "LAS")
-	PointMap.Set("硫化物", "SOx")
-	PointMap.Set("累计流量", "CumulativeDischarge")
-	PointMap.Set("水流量", "WaterDischarge")
-	PointMap.Set("总累积流量", "TotalCumulativeFlow")
-	PointMap.Set("水位", "WaterLevel")
-	PointMap.Set("时段累积流量", "PeriodCumulativeFlow")
-	PointMap.Set("断面平均流速", "SectionalMeanVelocity")
-	PointMap.Set("当前瞬时流速", "CurrentInstantaneousVelocity")
-	PointMap.Set("瞬时流量", "InstantaneousDelivery")
-	PointMap.Set("断面面积", "SectionalArea")
-
-	// TODO 初始行唯一字段映射表
-	RowOneMap.Set("水质类别", "water_quality_classification")
-	RowOneMap.Set("主要污染物", "key_pollutant")
-
-	// TODO 初始化行多字段映射表
-	RowAllMap.Set("分项类别", "item_category")
-
-	// TODO 初始化制度映射表
-	SysMap.Set("小时制", "hour")
-	SysMap.Set("月度制", "month")
-
-	// TODO 文件内容的标记点映射表
-	OptMap.Set("hour", "时间")
-	OptMap.Set("month", "监测断面")
-
-	// TODO 站名注册表
-	StationMap.Set("海门湾桥闸", "haimen_bay_bridge_gate")
-	StationMap.Set("汕头练江水站", "lian_jiang_water_station")
-	StationMap.Set("青洋山桥", "lian_jiang_water_station")
-	StationMap.Set("新溪西村", "xinxi_village")
-	StationMap.Set("万兴桥", "wanxing_bridge")
-	StationMap.Set("流仙学校", "liuxian_school")
-	StationMap.Set("仙马闸", "xianma_brake")
-	StationMap.Set("华侨学校", "huaqiao_school")
-	StationMap.Set("港洲桥", "gangzhou_bridge")
-	StationMap.Set("云陇", "yunlong")
-	StationMap.Set("北港水", "beixiangshui")
-	StationMap.Set("官田水", "guantianshui")
-	StationMap.Set("北港河闸", "beixiang_penstock")
-	StationMap.Set("峡山大溪", "xiashan_stream")
-	StationMap.Set("井仔湾闸", "jingzai_wan_sluice")
-	StationMap.Set("东北支流", "northeast_branch")
-	StationMap.Set("西埔桥闸", "xipu_bridge_sluice")
-	StationMap.Set("五福桥", "wufu_bridge")
-	StationMap.Set("成田大寮", "narita_daliao")
-	StationMap.Set("新坛港", "xitan_port")
-	StationMap.Set("瑶池港", "yaochi_port")
-	StationMap.Set("护城河闸", "moat_locks")
-	StationMap.Set("和平桥", "peace_bridge")
-}
+// 转换Excel时间格式定义
+var ExcelTimeFormat = "2006/1/2 15:04"
 
 // @title    StringToSql
 // @description   将model字段转化为数据库字段
 // @param     point string			输入字符串
 // @return    sql string			sql格式的字段
-func StringToSql(point string) (sql string) {
-	if len(point) <= 6 {
-		return strings.ToLower(point)
-	}
+// func StringToSql(point string) (sql string) {
+// 	if len(point) <= 6 {
+// 		return strings.ToLower(point)
+// 	}
 
-	var builder strings.Builder
+// 	var builder strings.Builder
 
-	for i, val := range point {
-		// TODO 是否大写
-		if unicode.IsUpper(val) {
-			if i > 0 {
-				builder.WriteRune('_')
-			}
-		}
-		builder.WriteRune(val)
-	}
-	return strings.ToLower(builder.String())
-}
+// 	for i, val := range point {
+// 		// TODO 是否大写
+// 		if unicode.IsUpper(val) {
+// 			if i > 0 {
+// 				builder.WriteRune('_')
+// 			}
+// 		}
+// 		builder.WriteRune(val)
+// 	}
+// 	return strings.ToLower(builder.String())
+// }
 
 // @title    Read
 // @description   读取文件内容
@@ -272,6 +147,14 @@ func ReadXlsx(file_path string) (res [][]string, err error) {
 				for k, row := range sheet.Rows {
 					var data []string
 					for _, cell := range row.Cells {
+						if cell.Type() == xlsx.CellTypeDate {
+							t, err := cell.GetTime(false) // 精度到秒
+							if err == nil {
+								val := t.Format(ExcelTimeFormat)
+								data = append(data, val)
+								continue
+							}
+						}
 						data = append(data, cell.Value)
 					}
 					temp[k] = data
@@ -283,6 +166,24 @@ func ReadXlsx(file_path string) (res [][]string, err error) {
 		return nil, err
 	}
 	return res, nil
+}
+
+// @title    ExcelFloatToTime
+// @description   把excel序列号转为time.Time类型
+// @param     excelDate float64
+// @return    time.Time, error    Time类型
+func ExcelFloatToTime(excelDate float64) (time.Time, error) {
+	if excelDate <= 0 {
+		return time.Time{}, errors.New("日期序列值，不能小于0")
+	}
+	// Excel 日期起点：1899-12-30
+	const excelEpoch = "1899-12-30"
+	baseTime, err := time.Parse("2006-01-02", excelEpoch)
+	if err != nil {
+		return time.Time{}, err
+	}
+	duration := time.Duration(excelDate * float64(24*time.Hour))
+	return baseTime.Add(duration), nil
 }
 
 // @title    SecondToTime
@@ -337,27 +238,6 @@ func PathExists(path string) (bool, error) {
 		return false, nil
 	}
 	return false, err
-}
-
-// @title    Mkdir
-// @description   建立文件夹
-// @param     path string	指定路径
-// @return   error    查看是否出错
-func Mkdir(dir string) error {
-	exist, err := PathExists(dir)
-	if err != nil {
-		return err
-	}
-
-	if !exist {
-		// TODO 创建目录
-		err := os.MkdirAll(dir, os.ModePerm)
-		if err != nil {
-			log.Printf("创建目录失败：%v\n", err)
-			return err
-		}
-	}
-	return nil
 }
 
 // @title    StringToFloat
