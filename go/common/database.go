@@ -45,6 +45,7 @@ func InitDB() *gorm.DB {
 	db.AutoMigrate(&model.FileHistory{})
 	db.AutoMigrate(&model.DataHistory{})
 	db.AutoMigrate(&model.MapHistory{})
+	db.AutoMigrate(&model.FileInfo{})
 	db.AutoMigrate(&model.MapVersion{})
 	db.AutoMigrate(&model.MapVersionDetail{})
 	db.AutoMigrate(&model.DataTableInfo{})

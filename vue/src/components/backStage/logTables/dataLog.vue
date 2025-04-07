@@ -62,7 +62,7 @@
     <el-table
       :data="tableData"
       v-loading="loading"
-      style="width: 94.6%; min-width: 1230px; left: max(2.7%, 35px);"
+      style="width: 94.6%; min-width: 1230px; left: max(2.7%, 35px)"
       border
       @selection-change="handleSelectionChange"
     >
@@ -127,59 +127,8 @@
   </div>
 </template>
 
-<style lang="less" scoped>
-.body {
-  width: 100%;
-  min-width: 1300px;
-}
-
-.searcher-container {
-  padding-left: max(2.7%, 35px);
-  margin-bottom: 15px;
-  .el-input {
-    margin-left: 10px;
-    width: 150px;
-  }
-
-  :nth-child(1) {
-    margin-left: 0px;
-  }
-
-  .time-picker {
-    display: inline-block;
-  }
-
-  .time-picker,
-  .el-button {
-    margin: 5px 0;
-    margin-left: 10px;
-  }
-
-  .el-select {
-    margin: 5px 0;
-    margin-left: 10px;
-    width: 150px;
-  }
-}
-
-.page-container {
-  display: flex;
-  margin-top: 10px;
-  padding-left: max(2.7%, 35px);
-  width: 94.6%;
-  .el-pagination {
-    display: inline-block;
-  }
-
-  .el-button {
-    width: 100px;
-    margin-left: auto;
-  }
-}
-</style>
-
 <script>
-import { formatTime } from "@/util/timeFormater.js";
+import { formatTime, dateFullFormatTime } from "@/util/timeFormater.js";
 import { getDataLog, deleteDataLog } from "@/api/history.js";
 export default {
   data() {
@@ -276,12 +225,13 @@ export default {
   },
   methods: {
     formatTime,
+    dateFullFormatTime,
     getTableData(params) {
       const start = this.createdAt ? this.createdAt[0] : "";
       const end = this.createdAt ? this.createdAt[1] : "";
       const query = params ? `?${params}` : "";
       this.loading = true;
-      getDataLog(start, end, query)
+      getDataLog(this.dateFullFormatTime(start), this.dateFullFormatTime(end), query)
         .then((res) => {
           this.tableData = res.data.dataHistories;
           this.totalNum = res.data.total;
@@ -317,13 +267,13 @@ export default {
       this.selection = selected;
     },
     handleDelete(id) {
-      let ids = []
+      const ids = [];
       if (id) {
-        ids.push(parseInt(id))
+        ids.push(parseInt(id));
       } else {
         this.selection.forEach((item) => {
-          ids.push(parseInt(item.id))
-        })
+          ids.push(parseInt(item.id));
+        });
       }
       deleteDataLog(ids)
         .then((res) => {
@@ -352,3 +302,54 @@ export default {
   },
 };
 </script>
+
+<style lang="less" scoped>
+.body {
+  width: 100%;
+  min-width: 1300px;
+}
+
+.searcher-container {
+  padding-left: max(2.7%, 35px);
+  margin-bottom: 15px;
+  .el-input {
+    margin-left: 10px;
+    width: 150px;
+  }
+
+  :nth-child(1) {
+    margin-left: 0px;
+  }
+
+  .time-picker {
+    display: inline-block;
+  }
+
+  .time-picker,
+  .el-button {
+    margin: 5px 0;
+    margin-left: 10px;
+  }
+
+  .el-select {
+    margin: 5px 0;
+    margin-left: 10px;
+    width: 150px;
+  }
+}
+
+.page-container {
+  display: flex;
+  margin-top: 10px;
+  padding-left: max(2.7%, 35px);
+  width: 94.6%;
+  .el-pagination {
+    display: inline-block;
+  }
+
+  .el-button {
+    width: 100px;
+    margin-left: auto;
+  }
+}
+</style>

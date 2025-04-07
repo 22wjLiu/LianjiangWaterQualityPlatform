@@ -33,7 +33,7 @@ export default {
           this.hourList = res.data.files;
         })
         .catch((err) => {
-          this.$message.warning(err.message)
+          this.$message.warning(err.message);
           console.log(err);
         });
       getFileList("path=/month")
@@ -41,7 +41,7 @@ export default {
           this.monthList = res.data.files;
         })
         .catch((err) => {
-          this.$message.warning(err.message)
+          this.$message.warning(err.message);
           console.log(err);
         });
     },

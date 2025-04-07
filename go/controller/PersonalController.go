@@ -39,7 +39,7 @@ func Users(ctx *gin.Context) {
 	start := ctx.Params.ByName("start")
 
 	if start != "" && start != "null" {
-		start, err := time.Parse(util.TimeFormat, start)
+		start, err := time.Parse(util.ReadableTimeFormat, start)
 		if err == nil{
 			db = db.Where("created_at >= ?", start)
 		} else {
@@ -51,7 +51,7 @@ func Users(ctx *gin.Context) {
 	end := ctx.Params.ByName("end")
 
 	if end != "" && end != "null" {
-		end, err := time.Parse(util.TimeFormat, end)
+		end, err := time.Parse(util.ReadableTimeFormat, end)
 		if err == nil{
 			db = db.Where("created_at <= ?", end)
 		} else {

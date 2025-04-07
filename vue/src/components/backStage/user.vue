@@ -1,7 +1,7 @@
 <template>
   <div class="body">
     <!-- 搜索输入区 -->
-    <div class="searcher-container" >
+    <div class="searcher-container">
       <el-input placeholder="请输入ID" v-model="searchList[0].value" clearable>
       </el-input>
       <el-input
@@ -51,7 +51,7 @@
     <el-table
       :data="tableData"
       v-loading="loading"
-      style="width: 94.6%; min-width: 1230px; left: max(2.7%, 35px);"
+      style="width: 94.6%; min-width: 1230px; left: max(2.7%, 35px)"
       border
       @selection-change="handleSelectionChange"
     >
@@ -145,69 +145,8 @@
   </div>
 </template>
 
-<style lang="less" scoped>
-.body {
-  margin-top: 20px;
-  width: 100%;
-  min-width: 1300px;
-}
-
-.searcher-container {
-  margin-bottom: 15px;
-  padding-left: max(2.7%, 35px);
-  .el-input {
-    margin-left: 10px;
-    width: 150px;
-  }
-
-  :nth-child(1) {
-    margin-left: 0px;
-  }
-
-  .time-picker {
-    display: inline-block;
-  }
-
-  .time-picker,
-  .el-button {
-    margin: 5px 0;
-    margin-left: 10px;
-  }
-
-  .el-select {
-    margin: 5px 0;
-    margin-left: 10px;
-    width: 150px;
-  }
-}
-
-.page-container {
-  display: flex;
-  margin-top: 10px;
-  padding-left: max(2.7%, 35px);
-  width: 94.6%;
-  .el-pagination {
-    display: inline-block;
-  }
-
-  .el-button {
-    width: 100px;
-    margin-left: auto;
-  }
-}
-
-.body /deep/ .el-dialog {
-  max-width: 500px;
-  min-width: 300px;
-
-  .el-select {
-    width: 100%;
-  }
-}
-</style>
-
 <script>
-import { formatTime, strToISO } from "@/util/timeFormater.js";
+import { formatTime, dateFullFormatTime } from "@/util/timeFormater.js";
 import { getUsers, updateUser, deleteUser, deleteUsers } from "@/api/user.js";
 export default {
   data() {
@@ -307,12 +246,13 @@ export default {
   },
   methods: {
     formatTime,
+    dateFullFormatTime,
     getTableData(params) {
       const start = this.createdAt ? this.createdAt[0] : "";
       const end = this.createdAt ? this.createdAt[1] : "";
       const query = params ? `?${params}` : "";
       this.loading = true;
-      getUsers(start, end, query)
+      getUsers(this.dateFullFormatTime(start), this.dateFullFormatTime(end), query)
         .then((res) => {
           this.tableData = res.data.users;
           this.totalNum = res.data.total;
@@ -337,13 +277,13 @@ export default {
       this.selection = selected;
     },
     handleDelete(id) {
-      let ids = []
+      const ids = [];
       if (id) {
-        ids.push(parseInt(id))
+        ids.push(parseInt(id));
       } else {
         this.selection.forEach((item) => {
-          ids.push(parseInt(item.id))
-        })
+          ids.push(parseInt(item.id));
+        });
       }
       deleteUsers(ids)
         .then((res) => {
@@ -368,23 +308,23 @@ export default {
     },
     handleUpdate(id, name, level) {
       this.origin = {
-        "name": name,
-        "level": level
+        name: name,
+        level: level,
       };
       this.temp = Object.assign({}, this.origin);
-      this.origin["id"] = id;
+      this.origin.id = id;
       this.dialogFormVisible = true;
       this.$nextTick(() => {
-        this.$refs["dataForm"].clearValidate();
+        this.$refs.dataForm.clearValidate();
       });
     },
     updateData() {
-      let body = Object.assign({}, this.temp);
-      if(this.temp.name === this.origin.name) body.name = "";
-      if(this.temp.level === this.origin.level) body.level = 0;
+      const body = Object.assign({}, this.temp);
+      if (this.temp.name === this.origin.name) body.name = "";
+      if (this.temp.level === this.origin.level) body.level = 0;
       updateUser(this.origin.id, body)
         .then((res) => {
-          if (res.code === 200){
+          if (res.code === 200) {
             this.$message.success(res.msg);
             this.dialogFormVisible = false;
             this.handleSearch();
@@ -394,7 +334,7 @@ export default {
         })
         .catch((err) => {
           this.$message.error(err.message);
-        })
+        });
     },
   },
   created() {
@@ -402,3 +342,64 @@ export default {
   },
 };
 </script>
+
+<style lang="less" scoped>
+.body {
+  margin-top: 20px;
+  width: 100%;
+  min-width: 1300px;
+}
+
+.searcher-container {
+  margin-bottom: 15px;
+  padding-left: max(2.7%, 35px);
+  .el-input {
+    margin-left: 10px;
+    width: 150px;
+  }
+
+  :nth-child(1) {
+    margin-left: 0px;
+  }
+
+  .time-picker {
+    display: inline-block;
+  }
+
+  .time-picker,
+  .el-button {
+    margin: 5px 0;
+    margin-left: 10px;
+  }
+
+  .el-select {
+    margin: 5px 0;
+    margin-left: 10px;
+    width: 150px;
+  }
+}
+
+.page-container {
+  display: flex;
+  margin-top: 10px;
+  padding-left: max(2.7%, 35px);
+  width: 94.6%;
+  .el-pagination {
+    display: inline-block;
+  }
+
+  .el-button {
+    width: 100px;
+    margin-left: auto;
+  }
+}
+
+.body :deep(.el-dialog) {
+  max-width: 500px;
+  min-width: 300px;
+
+  .el-select {
+    width: 100%;
+  }
+}
+</style>

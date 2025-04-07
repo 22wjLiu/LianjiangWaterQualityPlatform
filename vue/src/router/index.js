@@ -70,19 +70,16 @@ router.beforeEach((to, from, next) => {
       Vue.prototype.$message.warning("请先登录");
       next("/login");
     }
-  }
-  else if (path === '/backStage/user') {
+  } else if (path === "/backStage/user") {
     if (Number(localStorage.getItem("level")) < 4) {
       Vue.prototype.$message.warning("对不起，您没有权限");
       next(false);
     } else {
       next();
     }
-  } 
-  else {
+  } else {
     next();
   }
-
 });
 
 export default router;

@@ -106,7 +106,43 @@ func Upload(ctx *gin.Context) {
 	
 		response.Fail(ctx, nil, "读取文件内容失败，请重试")
 		return
-	}	
+	}
+	
+	// 存储文件信息
+	var fileInfo model.FileInfo
+
+	// 获取数据库指针
+	db := common.GetDB()
+
+	err = db.Table("file_infos").Where("file_name = ?", file.Filename).First(&fileInfo).Error
+
+	if err == nil {
+		db.Model(&fileInfo).Update("updated_at", model.Time(time.Now()))
+	} else if errors.Is(err, gorm.ErrRecordNotFound) {
+		// 文件名
+		fileInfo.FileName = file.Filename
+		// 文件类型
+		if len(extName) > 0 {
+			fileInfo.FileType = extName[1:]
+		} else {
+			fileInfo.FileType = "无"
+		}
+		// 文件路径
+		exePath, err := os.Executable()
+		if err != nil {
+			response.Fail(ctx, nil, "获取文件信息失败，请重试")
+			return
+		}
+		fileInfo.FilePath = filepath.Join(filepath.Dir(exePath), filepath.Clean(dirPath))
+
+		if err := db.Create(&fileInfo).Error; err != nil {
+			response.Fail(ctx, nil, "存储文件信息失败，请重试")
+			return
+		}
+	} else {
+		response.Fail(ctx, nil, "获取文件信息失败，请重试")
+		return
+	}
 
 	log.Println("开始解析上传文件...")
 
@@ -129,9 +165,6 @@ func Upload(ctx *gin.Context) {
 		response.Fail(ctx, nil, fmt.Sprintf("站名%s映射未注册", stName))
 		return
 	}
-
-	// 获取数据库指针
-	db := common.GetDB()
 
 	// 获取当前映射信息用于建表
 	var mapVer model.MapVersion
@@ -165,7 +198,17 @@ func Upload(ctx *gin.Context) {
 	
 	// 查看是否存在表
 	if !exists {
-		// 不存在即开始建表
+		// 不存在查看 表[data_table_infos] 是否留有脏数据 有则删除
+		if err := db.
+		Table("data_table_infos").
+		Where("data_table_name = ?", tableName).
+		Delete(nil).Error; err != nil {
+		log.Printf("查找数据表[%s]失败：%v\n", tableName, err)
+		response.Fail(ctx, nil, "查找数据表失败")
+		return
+		} 
+
+		// 开始创建主数据表
 		log.Printf("主数据表[%s]不存在，开始建表...\n", tableName)
 		isNewDataTable = true
 		var rowTime []string
@@ -182,27 +225,42 @@ func Upload(ctx *gin.Context) {
 		sql := util.BuildCreateTableSQL_Str_T(tableName, rowTime, rowStr)
 
 		if err := db.Exec(sql).Error; err != nil {
-			log.Printf("数据表[%s]创建失败\n", tableName)
-			response.Fail(ctx, nil, "数据表创建失败")
+			log.Printf("主数据表[%s] 创建失败\n", tableName)
+			response.Fail(ctx, nil, "主数据表创建失败")
 			return
 		}
 
-		log.Printf("主数据表[%s]创建成功\n", tableName)
-		log.Printf("开始写入主数据表[%s]信息到表[data_table_infos]中...\n", tableName)
+		log.Printf("主数据表[%s] 创建成功\n", tableName)
+		log.Printf("开始写入 主数据表[%s] 信息到 表[data_table_infos]中...\n", tableName)
 
-		// 写入数据表信息
+		var temp model.DataTableInfo
+		err = db.Table("data_table_infos").Where("station_name = ? and active = 1", stName).First(&temp).Error
+
+		if err == nil {
+			tableInfo.Active = false
+		} else if errors.Is(err, gorm.ErrRecordNotFound) {
+			tableInfo.Active = true
+		} else {
+			log.Printf("查找主数据表[%s] 信息失败: %v\n", tableName, err)
+			response.Fail(ctx, nil, "主数据表信息查找失败")
+			if err := db.Exec("DROP TABLE IF EXISTS " + tableName).Error; err != nil {
+				log.Printf("删除 主数据表[%s] 失败，请检查或手动删除：%v\n", tableName, err)
+			}
+			return
+		}
+
+		// 写入主数据表信息
 		tableInfo.MapVerId = mapVer.Id
 		tableInfo.DataTableName = tableName
 		tableInfo.StationName = stName
-		tableInfo.File = file.Filename
+		tableInfo.FileId = fileInfo.Id
 		tableInfo.System = system
-		tableInfo.Active = true
 
 		if err := db.Create(&tableInfo).Error; err != nil {
 			log.Printf("写入主数据表[%s]信息失败: %v\n", tableName, err)
-			response.Fail(ctx, nil, "写入数据表信息失败")
+			response.Fail(ctx, nil, "写入主数据表信息失败")
 			if err := db.Exec("DROP TABLE IF EXISTS " + tableName).Error; err != nil {
-				log.Printf("删除主数据表 [%s] 失败，请检查或手动删除：%v\n", tableName, err)
+				log.Printf("删除 主数据表[%s] 失败，请检查或手动删除：%v\n", tableName, err)
 			}
 			return
 		}
@@ -212,11 +270,11 @@ func Upload(ctx *gin.Context) {
 			First(&tableInfo).
 			Error;
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			log.Printf("主数据表[%s]信息不存在\n", tableName)
-			response.Fail(ctx, nil, "该主数据表信息不存在")
+			log.Printf("主数据表[%s] 信息不存在，出现信息同步错误\n", tableName)
+			response.Fail(ctx, nil, "主数据表信息同步错误")
 			return
 		} else if err != nil {
-			log.Printf("查找主数据表[%s]信息失败: %v\n", tableName, err)
+			log.Printf("查找主数据表[%s] 信息失败: %v\n", tableName, err)
 			response.Fail(ctx, nil, "查找主数据表信息失败")
 			return
 		}
@@ -225,9 +283,9 @@ func Upload(ctx *gin.Context) {
 		tempInfo.MapVerId = mapVer.Id
 		tempInfo.DataTableName = tableName
 		tempInfo.StationName = stName
-		tempInfo.File = file.Filename
+		tempInfo.FileId = fileInfo.Id
 		tempInfo.System = system
-		tempInfo.Active = true
+		tempInfo.Active = tableInfo.Active
 
 		if err := db.Table("data_table_infos").Create(&tempInfo).Error; err != nil {
 			log.Printf("写入主数据表[%s]信息失败: %v\n", tableName, err)
@@ -242,9 +300,6 @@ func Upload(ctx *gin.Context) {
 	tx := db.Begin()
 
 	defer func() {
-		if r := recover(); r != nil {
-			log.Printf("⚠️ defer 整体发生 panic：%v\n", r)
-		}
 		if !isErrorHappen {
 			return
 		}
@@ -516,8 +571,8 @@ func Upload(ctx *gin.Context) {
 	// 创建文件历史记录
 	if err := db.Create(&model.FileHistory{
 		UserId:   user.Id,
-		FileName: file.Filename,
-		FilePath: fullPath,
+		FileName: fileInfo.FileName,
+		FilePath: fileInfo.FilePath,
 		Option:   "创建",
 	}).Error; err != nil {
 		log.Printf("创建文件历史记录失败：%v\n", err)
@@ -621,6 +676,92 @@ func Download(ctx *gin.Context) {
 	ctx.Writer.Header().Add("Content-Disposition", fmt.Sprintf("attachment; filename=%s", file))
 	ctx.File("./home" + path)
 	response.Success(ctx, nil, "请求成功")
+}
+
+// @title    ShowFileInfos
+// @description   查询点集文件信息
+// @param    ctx *gin.Context       接收一个上下文
+// @return   void
+func ShowFileInfos(ctx *gin.Context) {
+	// 获取登录用户
+	tuser, _ := ctx.Get("user")
+
+	user := tuser.(model.User)
+
+	// 安全等级在四级以下的用户不能查看历史操作记录
+	if user.Level < 4 {
+		response.Fail(ctx, nil, "权限不足")
+		return
+	}
+
+	db := common.GetDB().Table("file_infos")
+
+	var fileInfos []model.FileInfo
+
+	// 读取参数请求
+	start := ctx.Params.ByName("start")
+
+	if start != "" && start != "null" {
+		start, err := time.Parse(util.ReadableTimeFormat, start)
+		if err == nil{
+			db = db.Where("created_at >= ?", start)
+		} else {
+			response.Fail(ctx, nil, "错误的文件日志开始时间")
+			return
+		}
+	}
+
+	end := ctx.Params.ByName("end")
+
+	if end != "" && end != "null" {
+		end, err := time.Parse(util.ReadableTimeFormat, end)
+		if err == nil{
+			db = db.Where("created_at <= ?", end)
+		} else {
+			response.Fail(ctx, nil, "错误的数据日志结束时间")
+			return
+		}
+	}
+
+	cond1 := map[string]interface{}{
+		"file_type": ctx.DefaultQuery("fileType", ""),
+	} 
+
+	db = util.DbConditionsEqual(db ,cond1)
+
+	cond2 := map[string]interface{}{
+		"file_name":  ctx.DefaultQuery("fileName", ""),
+	} 
+
+	db = util.DbConditionsLike(db ,cond2)
+
+	// 查询总数
+	var total int64
+	dbCount := db.Session(&gorm.Session{})
+	dbCount.Count(&total)
+
+	// 获取分页
+	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(ctx.DefaultQuery("pageSize", "25"))
+		
+	offset := (page - 1) * pageSize
+	
+	result := db.
+		Limit(pageSize).
+		Offset(offset).
+		Order("created_at desc").
+		Find(&fileInfos)
+	
+	if result.Error != nil {
+		response.Fail(ctx, nil, "参数有误")
+		return
+	}
+		
+	// 返回分页数据
+	response.Success(ctx, gin.H{
+		"fileInfos": fileInfos,
+		"total": total,
+	}, "查询成功")
 }
 
 // @title    DeleteFile

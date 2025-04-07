@@ -2,7 +2,7 @@
   <el-card>
     <div class="title">
       <img src="../../assets/cloud-upload.png" />
-      <h3>上传xlsx文件</h3>
+      <h3>支持上传xlsx文件</h3>
     </div>
     <el-divider></el-divider>
     <div class="body">
@@ -10,10 +10,10 @@
         <span>选择要上传文件的类型：</span>
 
         <el-radio v-model="system" label="小时制" border
-          >2018-2020年数据（小时制）</el-radio
+          >小时制</el-radio
         >
         <el-radio v-model="system" label="月度制" border
-          >汕头练江水站年数据汇总（月度制）</el-radio
+          >月度制</el-radio
         >
       </div>
       <el-divider></el-divider>

@@ -88,8 +88,8 @@ func InitConfig() {
 	}
 
 	viper.SetConfigName("application")
-	viper.SetConfigName("2")
-	// viper.SetConfigType("yml")
+	// viper.SetConfigName("2")
+	viper.SetConfigType("yml")
 	viper.AddConfigPath(workDir + "/config")
 
 	// 读取配置文件，如果发生错误，终止程序

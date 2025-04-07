@@ -1,96 +1,179 @@
 <template>
-  <div class="container" ref="liness"></div>
+  <div class="container">
+    <el-button
+      style="position: absolute; left: calc(5% / 3); z-index: 999"
+      type="primary"
+      size="small"
+      @click="handleUpdate()"
+      >编辑</el-button
+    >
+    <el-dialog
+      title="编辑可视化数据信息表"
+      :visible.sync="dialogFormVisible"
+      center
+    >
+      <el-form
+        ref="dataForm"
+        :rules="rules"
+        :model="temp"
+        label-position="left"
+        label-width="100px"
+      >
+        <el-form-item label="站名" prop="stationName">
+          <el-select
+            v-model="temp.stationName"
+            placeholder="请选择站名"
+            clearable
+          >
+            <el-option
+              v-for="item in stationOptions"
+              :key="item.value"
+              :label="item.value"
+              :value="item.value"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="开始时间" prop="startTime">
+          <el-date-picker
+            v-model="temp.startTime"
+            type="datetime"
+            placeholder="选择日期时间"
+            clearable
+          >
+          </el-date-picker>
+        </el-form-item>
+        <el-form-item label="结束时间" prop="endTime">
+          <el-date-picker
+            v-model="temp.endTime"
+            type="datetime"
+            placeholder="选择日期时间"
+            clearable
+          >
+          </el-date-picker>
+        </el-form-item>
+      </el-form>
+      <div slot="footer">
+        <el-button @click="dialogFormVisible = false"> 取消 </el-button>
+        <el-button type="primary" @click="updateData()"> 确认 </el-button>
+      </div>
+    </el-dialog>
+    <div class="lineGraph" ref="liness"></div>
+  </div>
 </template>
 
 <script>
-import { getLineData, getNameList } from "@/api/graphs.js";
+import {
+  getLineData,
+  getStationName,
+  getTimeRange,
+  getActiveMapInfosByStationName,
+} from "@/api/graphs.js";
+import { fullFormatTime } from "@/util/timeFormater";
 import bus from "@/util/eventBus";
 export default {
   data() {
     return {
       graph: null,
       myChart: null,
+      dialogFormVisible: false,
+      stationName: "",
+      temp: {
+        stationName: "",
+        startTime: "",
+        endTime: "",
+      },
+      startTime: "",
+      endTime: "",
+      dataMinTime: "",
+      dataMaxTime: "",
       lineData: [],
       options: [],
+      stationOptions: [],
       indexOfTime: -1,
-      hourName: "海门湾桥闸",
-      monthName: "北港河闸",
       system: "小时制",
+      rules: {
+        stationName: [
+          { required: true, message: "站名不能为空", trigger: "change" },
+        ],
+        startTime: [
+          { required: true, message: "开始时间不能为空", trigger: "change" },
+        ],
+        endTime: [
+          { required: true, message: "结束时间不能为空", trigger: "change" },
+          {
+            validator: (rule, value, callback) => {
+              if (!value || !this.temp.startTime) {
+                callback();
+              } else if (value <= this.temp.startTime) {
+                callback(new Error("结束时间必须大于开始时间"));
+              } else {
+                callback();
+              }
+            },
+            trigger: "change",
+          },
+        ],
+      },
     };
   },
   methods: {
-    async getLineListAgain() {
-      await this.empty();
-      const el = document.getElementById("lineGraph");
-      el.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
-      this.getLineList();
-      this.$message.info("请稍等");
-    },
-    systemChange() {
-      this.getLineListAgain();
-    },
-    nameChange() {
-      this.getLineListAgain();
-    },
-    empty() {
-      return new Promise((resolve) => {
-        let flag = true;
-        this.lineData.length = 0;
-        while (flag) {
-          if (this.lineData.length === 0) {
-            flag = false;
-            resolve();
-          }
-        }
+    fullFormatTime,
+    handleUpdate() {
+      this.dialogFormVisible = true;
+      this.temp.stationName = this.stationName;
+      this.temp.startTime = this.startTime;
+      this.temp.endTime = this.endTime;
+      this.$nextTick(() => {
+        this.$refs.dataForm.clearValidate();
       });
     },
-    getNameList() {
-      getNameList("站名映射")
-        .then((res) => {
-          this.nameList = res.data.keys;
-        })
-        .catch((err) => {
-          console.log(err);
-        });
+    async updateData() {
+      const valid = await this.$refs.dataForm.validate();
+
+      if (valid) {
+        this.getLineList(this.temp.startTime, this.temp.endTime);
+      }
     },
-    getLineList() {
-      const name = this.system === "小时制" ? this.hourName : this.monthName;
+    getLineList(start, end) {
       let params = "";
+      if (start) {
+        params += `start=${this.fullFormatTime(start)}&`;
+      }
+      if (end) {
+        params += `end=${this.fullFormatTime(end)}&`;
+      }
       this.options.forEach((item) => {
-        params += "fields=" + item.label + "&";
+        params += "fields=" + item.key + "&";
       });
       const last = params.lastIndexOf("&");
       params = params.slice(0, last);
 
-      getLineData(name, this.system, params)
+      getLineData(this.stationName, this.system, params)
         .then((res) => {
-          let data = res.data.resultArr;
-          // 将表中数值为 0 的字段赋值为 ''
-          data = data.map((item) => {
-            Object.keys(item).forEach((key) => {
-              if (item[key] <= 0) {
-                item[key] = "";
-              }
+          if (res.code === 200) {
+            this.dialogFormVisible = false;
+            this.startTime = res.data.startTime;
+            this.endTime = res.data.endTime;
+            let data = res.data.resultArr;
+            // 将表中数值为 0 的字段赋值为 ''
+            data = data.map((item) => {
+              Object.keys(item).forEach((key) => {
+                if (item[key] <= 0) {
+                  item[key] = "";
+                }
+              });
+              return item;
             });
-            return item;
-          });
+            this.lineData = data;
+            // 计算 data 中 time 字段的索引
+            this.indexOfTime = Object.keys(data[0]).indexOf("time");
 
-          this.lineData = data;
-
-          // 计算 data 中 time 字段的索引
-          Object.keys(data[0]).forEach((item, index) => {
-            if (item === "time") {
-              this.indexOfTime = index;
-            }
-          });
-
-          this.myChart.hideLoading();
-          this.draw(this.buildSeries(), this.buildSelected());
+            this.myChart.hideLoading();
+            this.draw(this.buildSeries(), this.buildSelected());
+          }
         })
         .catch((err) => {
+          this.$message.error(err.message);
           console.log(err);
         });
     },
@@ -98,8 +181,41 @@ export default {
       this.graph = this.$refs.liness;
       this.myChart = this.$echarts.init(this.graph);
     },
-    initOptions(){
-      
+    async initStationOptions() {
+      try {
+        const res = await getStationName();
+        if (res.code === 200) {
+          this.stationOptions = res.data.names;
+          this.stationName = this.stationOptions[0].value;
+        }
+      } catch (err) {
+        console.error("加载失败", err);
+      }
+    },
+    initTimeRange() {
+      getTimeRange(this.stationName, this.system)
+        .then((res) => {
+          if (res.code === 200) {
+            this.dataMinTime = res.data.minTime;
+            this.dataMaxTime = res.data.maxTime;
+          }
+        })
+        .catch((err) => {
+          console.error("加载失败", err);
+        });
+    },
+    async initOptions() {
+      try {
+        const res = await getActiveMapInfosByStationName(
+          "列字段映射",
+          "海门湾桥闸"
+        );
+        if (res.code === 200) {
+          this.options = res.data.mapInfos;
+        }
+      } catch (err) {
+        console.error("加载失败", err);
+      }
     },
     // 构造MyCharts.options.series
     buildSeries() {
@@ -115,7 +231,7 @@ export default {
               lineStyle: {
                 width: 1,
               },
-              name: item.label,
+              name: item.key,
               encode: {
                 x: this.indexOfTime,
                 y: index,
@@ -127,22 +243,21 @@ export default {
       return series;
     },
     buildSelected() {
-      const selected = Object.create(Object);
+      const selected = {};
       this.options.forEach((item) => {
-        const label = item.label;
+        const key = item.key;
+        for (let i = 0; i < this.lineData.length && i < 10; i++) {
+          let value = Number(this.lineData[i][item.value]);
 
-        if (
-          item.label === "累计流量" ||
-          item.label === "总累积流量" ||
-          item.label === "电导率" ||
-          item.label === "水流量" ||
-          item.label === "浊度"
-        ) {
-          selected[label] = false;
-        } else {
-          selected[label] = true;
+          // 如果是 NaN（表示乱码、非法等），按 0 处理
+          if (isNaN(value)) {
+            value = 0;
+          }
+          if (i > 0 && !selected[key]) continue;
+          selected[key] = value < 100;
         }
       });
+
       return selected;
     },
     draw(series, selected) {
@@ -172,7 +287,7 @@ export default {
           selected: selected,
         },
         title: {
-          text: this.hourName,
+          text: this.stationName,
           left: "center",
           textStyle: {
             fontFamily: "SimSun",
@@ -229,11 +344,11 @@ export default {
       });
     },
   },
-  created() {
-    this.getNameList();
+  async mounted() {
+    await this.initStationOptions();
+    this.initTimeRange();
+    await this.initOptions();
     this.getLineList();
-  },
-  mounted() {
     this.initChart();
     this.draw();
     this.myChart.showLoading();
@@ -243,7 +358,6 @@ export default {
       val.system === "月度制"
         ? (this.monthName = val.siteName)
         : (this.hourName = val.siteName);
-      this.getLineListAgain();
     });
     bus.$on("hideLoading", () => {
       this.myChart.hideLoading();
@@ -258,8 +372,25 @@ export default {
 <style lang="less" scoped>
 .container {
   height: 100%;
+}
+
+.lineGraph {
+  height: 100%;
   width: 100%;
   box-sizing: border-box;
   padding: 20px;
+}
+
+.container  :deep(.el-dialog) {
+  max-width: 500px;
+  min-width: 300px;
+
+  .el-select {
+    width: 100%;
+  }
+
+  .el-input {
+    width: 100%;
+  }
 }
 </style>

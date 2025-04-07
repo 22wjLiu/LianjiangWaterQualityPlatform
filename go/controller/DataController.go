@@ -7,6 +7,8 @@ import (
 	"lianjiang/common"
 	"lianjiang/model"
 	"lianjiang/util"
+	"lianjiang/dto"
+	// "log"
 	// "os/exec"
 	// "strconv"
 	"time"
@@ -16,6 +18,28 @@ import (
 
 	"github.com/gin-gonic/gin"
 )
+
+// // @title    ShowStationsWhichHasData
+// // @description   查询当前的有数据的站点
+// // @param    ctx *gin.Context       接收一个上下文
+// // @return   void
+func ShowStationsWhichHasData(ctx *gin.Context) {
+	db := common.GetDB()
+
+	var names []dto.StationNameData
+
+	if err := db.
+		Table("data_table_infos").
+		Select("DISTINCT station_name").
+		Where("active = 1").
+		Find(&names).Error; err != nil {
+		response.Fail(ctx, nil, "获取站名失败")
+		return
+	}
+
+	// 返回映射类型
+	response.Success(ctx, gin.H{"names": names}, "请求成功")
+}
 
 // // @title    DeleteData
 // // @description   删除点集数据
@@ -223,6 +247,74 @@ import (
 // 	response.Success(ctx, nil, "恢复成功")
 // }
 
+// // @title    ShowDataTimeRange
+// // @description   获取点集数据时间范围
+// // @param    ctx *gin.Context       接收一个上下文
+// // @return   void
+func ShowDataTimeRange(ctx *gin.Context) {
+	// 获取站名
+	name := ctx.Params.ByName("name")
+
+	_, ok := util.StationMap.Get(name)
+
+	if !ok {
+		response.Fail(ctx, nil, "不存在站名"+name)
+		return
+	}
+
+	// 获取制度
+	system := ctx.Params.ByName("system")
+
+	_, ok = util.SysMap.Get(system)
+
+	if !ok {
+		response.Fail(ctx, nil, "不存在制度"+system)
+		return
+	}
+
+	db := common.GetDB()
+
+	var tableInfo model.DataTableInfo
+	if err := db.Table("data_table_infos").Where("station_name = ? and system = ?", name, system).First(&tableInfo).Error; err != nil {
+		response.Fail(ctx, nil, "数据丢失")
+		return
+	}
+
+	// 查看是否存在该表
+	var exists bool
+	err := db.Raw(`
+	SELECT COUNT(*) > 0 FROM information_schema.tables 
+	WHERE table_schema = DATABASE() AND table_name = ?
+	`, tableInfo.DataTableName).Scan(&exists).Error
+
+	if err != nil {
+		response.Fail(ctx, nil, "数据丢失")
+		return
+	}
+
+	if !exists {
+		response.Fail(ctx, nil, "不存在对应表")
+		return
+	}
+
+	var minTime, maxTime time.Time
+
+	err = db.Table(tableInfo.DataTableName).
+			Select("MIN(time) as min_time, MAX(time) as max_time").
+			Row().
+			Scan(&minTime, &maxTime)
+	
+	if err != nil {
+		response.Fail(ctx, nil, "查询失败")
+		return
+	}
+
+	response.Success(ctx, gin.H{
+		"minTime": minTime.Format(util.ReadableTimeFormat),
+		"maxTime": maxTime.Format(util.ReadableTimeFormat),
+	},"查找成功")
+}
+
 // // @title    ShowData
 // // @description   获取点集数据
 // // @param    ctx *gin.Context       接收一个上下文
@@ -295,43 +387,69 @@ func ShowData(ctx *gin.Context) {
 		return
 	}
 
-	db = db.Table(tableInfo.DataTableName).Select(fields)
+	db = db.Table(tableInfo.DataTableName).Select("time")
+
+	startNotNull := false
+	endNotNull := false
 
 	// 取出请求
 	start := ctx.DefaultQuery("start", "")
-
 	if start != "" && start != "null" {
+		startNotNull = true
 		s, err := time.Parse(util.ReadableTimeFormat, start)
-		start = s.Format(util.ReadableTimeFormat)
-		db = db.Where("time >= ?", start)
 		if err != nil{
-			response.Fail(ctx, nil, "错误的数据结束时间")
+			response.Fail(ctx, nil, "错误的数据开始时间")
 			return
 		}
+		start = s.Format(util.ReadableTimeFormat)
+		db = db.Where("time >= ?", start)
 	}
 
 	end := ctx.DefaultQuery("end", "")
-
 	if end != "" && end != "null" {
+		endNotNull = true
 		e, err := time.Parse(util.ReadableTimeFormat, end)
-		end = e.Format(util.ReadableTimeFormat)
-		db = db.Where("time <= ?", end)
 		if err != nil{
 			response.Fail(ctx, nil, "错误的数据结束时间")
 			return
 		}
+		end = e.Format(util.ReadableTimeFormat)
+		if !startNotNull {
+			start = e.AddDate(0, -3, 0).Format(util.ReadableTimeFormat)
+		}
+		db = db.Where("time <= ?", end)
 	}
 
-	var total int64
-	db.Count(&total)
+	var endTime time.Time
+
+	if !endNotNull {
+		err = db.Select("MAX(time) as max_time").Row().Scan(&endTime)
+
+		if err != nil {
+			response.Fail(ctx, nil, "查询时间失败")
+			return
+		}
+
+		end = endTime.Format(util.ReadableTimeFormat)
+
+		if !startNotNull {
+			start = endTime.AddDate(0, -3, 0).Format(util.ReadableTimeFormat)
+		}
+	}
 
 	// 查找对应数组
-
 	resultArr := make([]map[string]interface{}, 0)
 
-	db.Scan(&resultArr)
+	db.Table(tableInfo.DataTableName).
+		Select(fields).
+		Where("time >= ? and time <= ?", start, end).
+		Scan(&resultArr)
 
-	response.Success(ctx, gin.H{"resultArr": resultArr}, "查找成功")
+	response.Success(ctx, gin.H{
+		"resultArr": resultArr,
+		"startTime": start,
+		"endTime": end,
+		}, "查找成功")
 }
 
 // // @title    ShowRowAllData

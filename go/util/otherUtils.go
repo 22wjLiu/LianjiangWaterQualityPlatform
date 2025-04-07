@@ -30,9 +30,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// 时间格式定义
-var TimeFormat = "2006-01-02T15:04:05"
-
 // 可读时间格式定义
 var ReadableTimeFormat = "2006-01-02 15:04:05"
 

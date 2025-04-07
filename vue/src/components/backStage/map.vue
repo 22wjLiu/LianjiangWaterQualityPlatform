@@ -1,7 +1,7 @@
 <template>
   <div class="body">
     <!-- 搜索输入区 -->
-    <div class="searcher-container" >
+    <div class="searcher-container">
       <el-select
         placeholder="请选择映射类型"
         v-model="searchList[2].value"
@@ -21,14 +21,16 @@
         clearable
       >
       </el-input>
-      <el-input
-        placeholder="请输入值"
-        v-model="searchList[1].value"
-        clearable
-      >
+      <el-input placeholder="请输入值" v-model="searchList[1].value" clearable>
       </el-input>
       <el-button type="primary" icon="el-icon-search" @click="handleSearch">
         搜索
+      </el-button>
+      <el-button type="primary" icon="el-icon-plus" @click="handleCreate">
+        新增版本
+      </el-button>
+      <el-button type="primary" icon="el-icon-s-order" @click="handleVersion">
+        版本管理
       </el-button>
     </div>
 
@@ -36,7 +38,7 @@
     <el-table
       :data="tableData"
       v-loading="loading"
-      style="width: 94.6%; min-width: 1230px; left: max(2.7%, 35px);"
+      style="width: 94.6%; min-width: 1230px; left: max(2.7%, 35px)"
       border
       @selection-change="handleSelectionChange"
     >
@@ -44,8 +46,7 @@
       </el-table-column>
       <el-table-column prop="table" label="类型" align="center">
       </el-table-column>
-      <el-table-column prop="key" label="键" align="center">
-      </el-table-column>
+      <el-table-column prop="key" label="键" align="center"> </el-table-column>
       <el-table-column prop="value" label="值" align="center">
       </el-table-column>
       <el-table-column label="操作" align="center" width="220">
@@ -118,6 +119,176 @@
   </div>
 </template>
 
+<script>
+import { formatTime } from "@/util/timeFormater.js";
+import { getCurMaps, getMapTables } from "@/api/map.js";
+export default {
+  data() {
+    return {
+      totalNum: 0,
+      loading: true,
+      dialogFormVisible: false,
+      tableData: [],
+      selection: [],
+      tableOptions: [],
+      temp: {},
+      origin: {},
+      searchList: [
+        {
+          label: "key",
+          value: "",
+        },
+        {
+          label: "value",
+          value: "",
+        },
+        {
+          label: "table",
+          value: "",
+        },
+        {
+          label: "page",
+          value: 1,
+        },
+        {
+          label: "pageSize",
+          value: 25,
+        },
+      ],
+      rules: {
+        name: [{ required: true, message: "用户名不能为空", trigger: "blur" }],
+        level: [{ required: true, message: "等级不能为空", trigger: "change" }],
+      },
+    };
+  },
+  methods: {
+    formatTime,
+    getMapTables() {
+      getMapTables()
+        .then((res) => {
+          let temp;
+          res.data.tables.forEach((item) => {
+            temp = {
+              value: item,
+            };
+            this.tableOptions.push(temp);
+          });
+        })
+        .catch((err) => {
+          this.$message.error(err.message);
+        });
+    },
+    getTableData(params) {
+      const query = params ? `?${params}` : "";
+      this.loading = true;
+      getCurMaps(query)
+        .then((res) => {
+          this.tableData = res.data.maps;
+          this.totalNum = res.data.total;
+          this.loading = false;
+        })
+        .catch((err) => {
+          this.$message.error(err.message);
+        });
+    },
+    handleSearch() {
+      let params = "";
+      this.searchList.forEach((item) => {
+        if (item.value !== "") {
+          params += item.label + "=" + item.value + "&";
+        }
+      });
+      const last = params.lastIndexOf("&");
+      params = params.slice(0, last);
+      this.getTableData(params);
+    },
+    handleDelete(id) {
+      deleteUser(id)
+        .then((res) => {
+          if (res.code == 200) {
+            this.handleSearch();
+            this.$message.success(res.msg);
+          } else {
+            this.$message.warning(res.msg);
+          }
+        })
+        .catch((err) => {
+          this.$message.error(err.message);
+        });
+    },
+    handleSelectionChange(selected) {
+      this.selection = selected;
+    },
+    handleMutiDelete() {
+      const ids = [];
+      this.selection.forEach((item) => {
+        ids.push(item.id);
+      });
+      deleteUsers(ids)
+        .then((res) => {
+          if (res.code == 200) {
+            this.handleSearch();
+            this.$message.success(res.msg);
+          } else {
+            this.$message.warning(res.msg);
+          }
+        })
+        .catch((err) => {
+          this.$message.error(err.message);
+        });
+    },
+    handleSizeChange(val) {
+      this.searchList[4].value = val;
+      this.handleSearch();
+    },
+    handleCurrentChange(val) {
+      this.searchList[3].value = val;
+      this.handleSearch();
+    },
+    handleUpdate(id, name, level) {
+      this.origin = {
+        name: name,
+        level: level,
+      };
+      this.temp = Object.assign({}, this.origin);
+      this.origin.id = id;
+      this.dialogFormVisible = true;
+      this.$nextTick(() => {
+        this.$refs.dataForm.clearValidate();
+      });
+    },
+    updateData() {
+      const body = Object.assign({}, this.temp);
+      if (this.temp.name === this.origin.name) body.name = "";
+      if (this.temp.level === this.origin.level) body.level = 0;
+      updateUser(this.origin.id, body)
+        .then((res) => {
+          if (res.code === 200) {
+            this.$message.success(res.msg);
+            this.dialogFormVisible = false;
+            this.handleSearch();
+          } else {
+            this.$message.warning(res.msg);
+          }
+        })
+        .catch((err) => {
+          this.$message.error(err.message);
+        });
+    },
+    handleCreate() {
+      console.log("yes")
+    },
+    handleVersion() {
+      console.log("yes")
+    }
+  },
+  created() {
+    this.getMapTables();
+    this.handleSearch();
+  },
+};
+</script>
+
 <style lang="less" scoped>
 .body {
   margin-top: 20px;
@@ -168,7 +339,7 @@
   }
 }
 
-.body /deep/ .el-dialog {
+.body :deep(.el-dialog) {
   max-width: 500px;
   min-width: 300px;
 
@@ -177,167 +348,3 @@
   }
 }
 </style>
-
-<script>
-import { formatTime, strToISO } from "@/util/timeFormater.js";
-import { getCurMaps, getMapTables} from "@/api/map.js";
-export default {
-  data() {
-    return {
-      totalNum: 0,
-      loading: true,
-      dialogFormVisible: false,
-      tableData: [],
-      selection: [],
-      tableOptions: [],
-      temp: {},
-      origin: {},
-      searchList: [
-        {
-          label: "key",
-          value: "",
-        },
-        {
-          label: "value",
-          value: "",
-        },
-        {
-          label: "table",
-          value: "",
-        },
-        {
-          label: "page",
-          value: 1,
-        },
-        {
-          label: "pageSize",
-          value: 25,
-        },
-      ],
-      rules: {
-        name: [{ required: true, message: "用户名不能为空", trigger: "blur" }],
-        level: [{ required: true, message: "等级不能为空", trigger: "change" }],
-      },
-    };
-  },
-  methods: {
-    formatTime,
-    getMapTables(){
-      getMapTables()
-        .then((res) => {
-          let temp;
-          res.data.tables.forEach((item) => {
-            temp = {
-              "value": item
-            }
-            this.tableOptions.push(temp);
-          })
-        })
-        .catch((err) => {
-          this.$message.error(err.message)
-        });
-    },
-    getTableData(params) {
-      const query = params ? `?${params}` : "";
-      this.loading = true;
-      getCurMaps(query)
-        .then((res) => {
-          this.tableData = res.data.maps;
-          this.totalNum = res.data.total;
-          this.loading = false;
-        })
-        .catch((err) => {
-          this.$message.error(err.message);
-        });
-    },
-    handleSearch() {
-      let params = "";
-      this.searchList.forEach((item) => {
-        if (item.value !== "") {
-          params += item.label + "=" + item.value + "&";
-        }
-      });
-      const last = params.lastIndexOf("&");
-      params = params.slice(0, last);
-      this.getTableData(params);
-    },
-    handleDelete(id) {
-      deleteUser(id)
-        .then((res) => {
-          if (res.code == 200) {
-            this.handleSearch();
-            this.$message.success(res.msg);
-          } else {
-            this.$message.warning(res.msg);
-          }
-        })
-        .catch((err) => {
-          this.$message.error(err.message);
-        });
-    },
-    handleSelectionChange(selected) {
-      this.selection = selected;
-    },
-    handleMutiDelete() {
-      let ids = []
-      this.selection.forEach((item) => {
-        ids.push(item.id)
-      })
-      deleteUsers(ids)
-        .then((res) => {
-          if (res.code == 200) {
-            this.handleSearch();
-            this.$message.success(res.msg);
-          } else {
-            this.$message.warning(res.msg);
-          }
-        })
-        .catch((err) => {
-          this.$message.error(err.message);
-        });
-    },
-    handleSizeChange(val) {
-      this.searchList[4].value = val;
-      this.handleSearch();
-    },
-    handleCurrentChange(val) {
-      this.searchList[3].value = val;
-      this.handleSearch();
-    },
-    handleUpdate(id, name, level) {
-      this.origin = {
-        "name": name,
-        "level": level
-      };
-      this.temp = Object.assign({}, this.origin);
-      this.origin["id"] = id;
-      this.dialogFormVisible = true;
-      this.$nextTick(() => {
-        this.$refs["dataForm"].clearValidate();
-      });
-    },
-    updateData() {
-      let body = Object.assign({}, this.temp);
-      if(this.temp.name === this.origin.name) body.name = "";
-      if(this.temp.level === this.origin.level) body.level = 0;
-      updateUser(this.origin.id, body)
-        .then((res) => {
-          if (res.code === 200){
-            this.$message.success(res.msg);
-            this.dialogFormVisible = false;
-            this.handleSearch();
-          } else {
-            this.$message.warning(res.msg);
-          }
-        })
-        .catch((err) => {
-          this.$message.error(err.message);
-        })
-    },
-  },
-  created() {
-    this.getMapTables();
-    this.handleSearch();
-  },
-};
-</script>

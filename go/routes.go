@@ -53,8 +53,17 @@ func CollectRoute(r *gin.Engine) *gin.Engine {
 	// TODO 文件删除
 	r.DELETE("/file", middleware.AuthMiddleware(), controller.DeleteFile)
 
-	// TODO 数据获取
+	// 查询文件信息
+	r.GET("/fileInfos/:start/:end", middleware.AuthMiddleware(), controller.ShowFileInfos)
+
+	// 数据获取
 	r.GET("/data/:name/:system", middleware.AuthMiddleware(), controller.ShowData)
+
+	// 获取已存数据站的站名
+	r.GET("/stationName", middleware.AuthMiddleware(), controller.ShowStationsWhichHasData)
+
+	// 获取数据最大最小时间
+	r.GET("/timeRange/:name/:system", middleware.AuthMiddleware(), controller.ShowDataTimeRange)
 
 	// // TODO 获取一对多的行字段
 	// r.GET("/data/rowall/:key/:name", middleware.AuthMiddleware(), controller.ShowRowAllData)
@@ -66,7 +75,7 @@ func CollectRoute(r *gin.Engine) *gin.Engine {
 
 	// TODO 数据恢复
 
-	// TODO 查看用户的文件上传、删除记录
+	// 查看用户的文件上传、删除记录
 	r.GET("/history/file/:start/:end", middleware.AuthMiddleware(), controller.FileHistory)
 
 	// 删除用户的数据上传、删除记录
@@ -89,6 +98,10 @@ func CollectRoute(r *gin.Engine) *gin.Engine {
 
 	// 查询当前映射表
 	r.GET("/curMaps", middleware.AuthMiddleware(), controller.ShowCurrentMaps)
+
+	// 通过站名和映射类型查询映射信息
+	r.GET("/mapInfos/:mapType/:stationName", middleware.AuthMiddleware(), controller.ShowActiveMapInfosByStationName)
+
 
 	// 查询映射主键
 	r.GET("/map/:id", middleware.AuthMiddleware(), controller.ShowMapKeys)

@@ -1,4 +1,4 @@
-// @Title  BatchDeleteIdDto
+// @Title  batchDeleteIdDto
 // @Description  用于封装要删除的一组ID
 package dto
 

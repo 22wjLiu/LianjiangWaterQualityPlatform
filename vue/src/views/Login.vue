@@ -225,7 +225,7 @@ export default {
             this.$message.success(res.msg);
             this.token = res.data.token;
             localStorage.setItem("token", res.data.token);
-            console.log(res.data)
+            console.log(res.data);
             localStorage.setItem("level", res.data.level);
             this.$router.push("/overview");
             bus.$emit("activeIndexChange", {

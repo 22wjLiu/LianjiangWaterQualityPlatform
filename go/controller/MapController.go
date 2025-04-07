@@ -8,6 +8,7 @@ import (
 	"lianjiang/model"
 	"lianjiang/response"
 	"lianjiang/util"
+	"lianjiang/dto"
 	"strconv"
 
 	"gorm.io/gorm"
@@ -77,8 +78,54 @@ func ShowMapValue(ctx *gin.Context) {
 		return
 	}
 
-	// TODO 返回所有value
+	// 返回所有value
 	response.Success(ctx, gin.H{"value": value}, "请求成功")
+}
+
+// @title    ShowActiveMapInfoByStationName
+// @description   根据站名和映射类型获取相关的使用中映射信息
+// @param    ctx *gin.Context       接收一个上下文
+// @return   void
+func ShowActiveMapInfosByStationName(ctx *gin.Context) {
+	// 获取站名和映射类型
+	mapType := ctx.Params.ByName("mapType")
+	stationName := ctx.Params.ByName("stationName")
+
+	db := common.GetDB()
+
+	var tableInfo model.DataTableInfo
+
+	if err := db.
+		Table("data_table_infos").
+		Where("station_name = ? and active = 1", stationName).
+		First(&tableInfo).Error; err != nil {
+			response.Fail(ctx, nil, "查询数据表信息出错")
+			return
+	}
+	
+	var mapVer model.MapVersion
+
+	if err := db.
+		Table("map_versions").
+		Where("id = ?", tableInfo.MapVerId).
+		First(&mapVer).Error; err != nil {
+			response.Fail(ctx, nil, "查询映射表信息出错")
+			return
+	}
+
+	var mapInfos []dto.MapVersionInfos
+
+	if err := db.
+	Table("map_version_details").
+	Select("`key`, `value`").
+	Where("ver_id = ? and `table` = ?", mapVer.Id, mapType).
+	Find(&mapInfos).Error; err != nil {
+		response.Fail(ctx, nil, "查询映射表信息出错")
+		return
+	}
+
+	// 返回所有value
+	response.Success(ctx, gin.H{"mapInfos": mapInfos}, "请求成功")
 }
 
 // @title    ShowCurrentMaps

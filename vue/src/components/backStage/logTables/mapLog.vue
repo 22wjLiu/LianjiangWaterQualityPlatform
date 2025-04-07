@@ -2,9 +2,17 @@
   <div class="body">
     <!-- 搜索输入区 -->
     <div class="searcher-container">
-      <el-input placeholder="请输入用户ID" v-model="searchList[0].value" clearable>
+      <el-input
+        placeholder="请输入用户ID"
+        v-model="searchList[0].value"
+        clearable
+      >
       </el-input>
-      <el-input placeholder="请输入映射版本" v-model="searchList[1].value" clearable>
+      <el-input
+        placeholder="请输入映射版本"
+        v-model="searchList[1].value"
+        clearable
+      >
       </el-input>
       <el-input placeholder="请输入键" v-model="searchList[2].value" clearable>
       </el-input>
@@ -43,7 +51,7 @@
     <el-table
       :data="tableData"
       v-loading="loading"
-      style="width: 94.6%; min-width: 1230px; left: max(2.7%, 35px);"
+      style="width: 94.6%; min-width: 1230px; left: max(2.7%, 35px)"
       border
       @selection-change="handleSelectionChange"
     >
@@ -58,8 +66,7 @@
       </el-table-column>
       <el-table-column prop="version_name" label="映射版本" align="center">
       </el-table-column>
-      <el-table-column prop="key" label="键" align="center">
-      </el-table-column>
+      <el-table-column prop="key" label="键" align="center"> </el-table-column>
       <el-table-column prop="value" label="值" align="center">
       </el-table-column>
       <el-table-column label="操作方式" align="center">
@@ -100,59 +107,8 @@
   </div>
 </template>
 
-<style lang="less" scoped>
-.body {
-  width: 100%;
-  min-width: 1300px;
-}
-
-.searcher-container {
-  padding-left: max(2.7%, 35px);
-  margin-bottom: 15px;
-  .el-input {
-    margin-left: 10px;
-    width: 150px;
-  }
-
-  :nth-child(1) {
-    margin-left: 0px;
-  }
-
-  .time-picker {
-    display: inline-block;
-  }
-
-  .time-picker,
-  .el-button {
-    margin: 5px 0;
-    margin-left: 10px;
-  }
-
-  .el-select {
-    margin: 5px 0;
-    margin-left: 10px;
-    width: 150px;
-  }
-}
-
-.page-container {
-  display: flex;
-  margin-top: 10px;
-  padding-left: max(2.7%, 35px);
-  width: 94.6%;
-  .el-pagination {
-    display: inline-block;
-  }
-
-  .el-button {
-    width: 100px;
-    margin-left: auto;
-  }
-}
-</style>
-
 <script>
-import { formatTime } from "@/util/timeFormater.js";
+import { formatTime, dateFullFormatTime } from "@/util/timeFormater.js";
 import { getMapLog, deleteMapLog } from "@/api/history.js";
 export default {
   data() {
@@ -249,12 +205,13 @@ export default {
   },
   methods: {
     formatTime,
+    dateFullFormatTime,
     getTableData(params) {
       const start = this.createdAt ? this.createdAt[0] : "";
       const end = this.createdAt ? this.createdAt[1] : "";
       const query = params ? `?${params}` : "";
       this.loading = true;
-      getMapLog(start, end, query)
+      getMapLog(this.dateFullFormatTime(start), this.dateFullFormatTime(end), query)
         .then((res) => {
           this.tableData = res.data.mapHistories;
           this.totalNum = res.data.total;
@@ -290,13 +247,13 @@ export default {
       this.selection = selected;
     },
     handleDelete(id) {
-      let ids = []
+      const ids = [];
       if (id) {
-        ids.push(parseInt(id))
+        ids.push(parseInt(id));
       } else {
         this.selection.forEach((item) => {
-          ids.push(parseInt(item.id))
-        })
+          ids.push(parseInt(item.id));
+        });
       }
       deleteMapLog(ids)
         .then((res) => {
@@ -325,3 +282,54 @@ export default {
   },
 };
 </script>
+
+<style lang="less" scoped>
+.body {
+  width: 100%;
+  min-width: 1300px;
+}
+
+.searcher-container {
+  padding-left: max(2.7%, 35px);
+  margin-bottom: 15px;
+  .el-input {
+    margin-left: 10px;
+    width: 150px;
+  }
+
+  :nth-child(1) {
+    margin-left: 0px;
+  }
+
+  .time-picker {
+    display: inline-block;
+  }
+
+  .time-picker,
+  .el-button {
+    margin: 5px 0;
+    margin-left: 10px;
+  }
+
+  .el-select {
+    margin: 5px 0;
+    margin-left: 10px;
+    width: 150px;
+  }
+}
+
+.page-container {
+  display: flex;
+  margin-top: 10px;
+  padding-left: max(2.7%, 35px);
+  width: 94.6%;
+  .el-pagination {
+    display: inline-block;
+  }
+
+  .el-button {
+    width: 100px;
+    margin-left: auto;
+  }
+}
+</style>
