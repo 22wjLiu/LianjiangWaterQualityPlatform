@@ -17,3 +17,9 @@ export const getNameList = (id) => {
     needToken: true
   });
 };
+
+export const getValueList = (id) => {
+  return request.get(`/map/${id}`, {
+    needToken: true
+  });
+};

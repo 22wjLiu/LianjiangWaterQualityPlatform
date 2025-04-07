@@ -3,7 +3,8 @@ import router from "../router";
 import { MessageBox, Message } from 'element-ui'
 
 const request = axios.create({
-  baseURL: "http://10.143.50.69:8017",
+  // baseURL: "http://10.143.50.69:8017",
+  baseURL: "http://192.168.10.100:1019"
 });
 
 // 请求拦截器

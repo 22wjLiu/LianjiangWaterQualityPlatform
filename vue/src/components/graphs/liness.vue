@@ -11,97 +11,8 @@ export default {
       graph: null,
       myChart: null,
       lineData: [],
+      options: [],
       indexOfTime: -1,
-      options: [
-        {
-          label: "水温",
-          value: "temperature",
-        },
-        {
-          label: "pH",
-          value: "ph",
-        },
-        {
-          label: "溶解氧",
-          value: "do",
-        },
-        {
-          label: "电导率",
-          value: "ec",
-        },
-        {
-          label: "浊度",
-          value: "turbidity",
-        },
-        {
-          label: "高锰酸盐指数",
-          value: "codmii",
-        },
-        {
-          label: "氨氮",
-          value: "nh_n",
-        },
-        {
-          label: "总磷",
-          value: "tp",
-        },
-        {
-          label: "总氮",
-          value: "tn",
-        },
-        {
-          label: "CODcr",
-          value: "codcr",
-        },
-        {
-          label: "氰化物",
-          value: "cn",
-        },
-        {
-          label: "挥发酚",
-          value: "volatile_penol",
-        },
-        {
-          label: "六价铬",
-          value: "cr",
-        },
-        {
-          label: "铜",
-          value: "cu",
-        },
-        {
-          label: "锌",
-          value: "zn",
-        },
-        {
-          label: "铅",
-          value: "pb",
-        },
-        {
-          label: "镉",
-          value: "cd",
-        },
-        {
-          label: "阴离子表面活性剂",
-          value: "las",
-        },
-        {
-          label: "硫化物",
-          value: "sox",
-        },
-        {
-          label: "累计流量",
-          value: "cumulative_discharge",
-        },
-        {
-          label: "水流量",
-          value: "water_discharge",
-        },
-        {
-          label: "总累积流量",
-          value: "total_cumulative_flow",
-        },
-      ],
       hourName: "海门湾桥闸",
       monthName: "北港河闸",
       system: "小时制",
@@ -136,7 +47,6 @@ export default {
         }
       });
     },
-
     getNameList() {
       getNameList("站名映射")
         .then((res) => {
@@ -187,6 +97,9 @@ export default {
     initChart() {
       this.graph = this.$refs.liness;
       this.myChart = this.$echarts.init(this.graph);
+    },
+    initOptions(){
+      
     },
     // 构造MyCharts.options.series
     buildSeries() {
