@@ -4,6 +4,7 @@
       <li @click="changeLogType(0)">数据日志</li>
       <li @click="changeLogType(1)">文件日志</li>
       <li @click="changeLogType(2)">映射日志</li>
+      
       <li
         class="nav-slider"
         :style="`left: calc(${activeIndex} * 33.3%); background-color: ${backColor}`"
