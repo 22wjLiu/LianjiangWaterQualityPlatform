@@ -9,7 +9,7 @@ type DataTableInfo struct {
 	FileId    	 		uint 	`json:"file" gorm:"type:varchar(50);not null"`     						// 文件ID
 	DataTableName   string 	`json:"table_name" gorm:"type:varchar(50);not null"`   			// 数据表名
 	StationName   	string 	`json:"table_name" gorm:"type:varchar(50);not null"`   			// 站名
-	System      		string `json:"system" gorm:"type:varchar(50);not null"`      			  // 制度
+	System      		string `json:"system" gorm:"type:varchar(10);not null"`      			  // 制度
 	Active      		bool    `json:"active" gorm:"type:boolean;default:false;not null"`  // 是否使用中
 	StartTime       Time 		`json:"start_time" gorm:"type:datetime;default:null"`  			// 开始日期
 	EndTime         Time 		`json:"end_time" gorm:"type:datetime;default:null"`    			// 终止日期

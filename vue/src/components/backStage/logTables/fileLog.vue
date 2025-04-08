@@ -12,6 +12,32 @@
       </el-input>
       <el-select
         v-model="searchList[2].value"
+        placeholder="请选择制度"
+        clearable
+      >
+        <el-option
+          v-for="item in sysOptions"
+          :key="item.value"
+          :label="item.label"
+          :value="item.value"
+        >
+        </el-option>
+      </el-select>
+      <el-select
+        v-model="searchList[3].value"
+        placeholder="请选择文件类型"
+        clearable
+      >
+        <el-option
+          v-for="item in typeOptions"
+          :key="item.value"
+          :label="item.label"
+          :value="item.value"
+        >
+        </el-option>
+      </el-select>
+      <el-select
+        v-model="searchList[4].value"
         placeholder="请选择操作方式"
         clearable
       >
@@ -51,16 +77,22 @@
     >
       <el-table-column type="selection" align="center" width="55">
       </el-table-column>
-      <el-table-column label="创建时间" align="center">
+      <el-table-column label="创建时间" align="center" width="150">
         <template slot-scope="scope">
           {{ formatTime(scope.row.created_at) }}
         </template>
       </el-table-column>
-      <el-table-column prop="user_id" label="用户ID" align="center">
+      <el-table-column prop="user_id" label="用户ID" align="center" width="100">
+      </el-table-column>
+      <el-table-column prop="system" label="制度" align="center" width="100">
       </el-table-column>
       <el-table-column prop="file_name" label="文件名" align="center">
       </el-table-column>
-      <el-table-column label="操作方式" align="center">
+      <el-table-column prop="file_path" label="路径" align="center">
+      </el-table-column>
+      <el-table-column prop="file_type" label="文件类型" align="center" width="100">
+      </el-table-column>
+      <el-table-column label="操作方式" align="center" width="100">
         <template slot-scope="scope">
           <el-tag size="medium" :type="getTagType(scope.row.option)">
             {{ scope.row.option }}
@@ -84,9 +116,9 @@
       <el-pagination
         @size-change="handleSizeChange"
         @current-change="handleCurrentChange"
-        :current-page="searchList[3].value"
+        :current-page="searchList[5].value"
         :page-sizes="[25, 50, 75, 100]"
-        :page-size="searchList[4].value"
+        :page-size="searchList[6].value"
         layout="total, sizes, prev, pager, next, jumper"
         :total="totalNum"
       >
@@ -119,6 +151,14 @@ export default {
           value: "",
         },
         {
+          label: "system",
+          value: "",
+        },
+        {
+          label: "fileType",
+          value: "",
+        },
+        {
           label: "option",
           value: "",
         },
@@ -139,6 +179,17 @@ export default {
           value: "月度制",
         },
       ],
+      typeOptions: [
+        {
+          value: "xlsx",
+        },
+        {
+          value: "xls",
+        },
+        {
+          value: "css",
+        },
+      ],
       opOptions: [
         {
           value: "创建",
@@ -146,6 +197,12 @@ export default {
         {
           value: "删除",
         },
+        {
+          value: "更新(前)",
+        },
+        {
+          value: "更新(后)",
+        }
       ],
       options: [
         {
@@ -155,6 +212,14 @@ export default {
         {
           label: "删除",
           type: "danger",
+        },
+        {
+          label: "更新(前)",
+          type: "warning",
+        },
+        {
+          label: "更新(后)",
+          type: "success",
         },
       ],
       pickerOptions: {
@@ -212,7 +277,7 @@ export default {
       let type = "";
       this.options.some((item) => {
         if (item.label === option) {
-          type = item.value;
+          type = item.type;
           return true;
         }
         return false;
@@ -257,11 +322,11 @@ export default {
       this.selection = selected;
     },
     handleSizeChange(val) {
-      this.searchList[4].value = val;
+      this.searchList[6].value = val;
       this.handleSearch();
     },
     handleCurrentChange(val) {
-      this.searchList[3].value = val;
+      this.searchList[5].value = val;
       this.handleSearch();
     },
   },
@@ -275,6 +340,7 @@ export default {
 .body {
   width: 100%;
   min-width: 1300px;
+  padding-bottom: 20px;
 }
 
 .searcher-container {

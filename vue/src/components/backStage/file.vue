@@ -15,9 +15,22 @@
         >
         </el-option>
       </el-select>
+      <el-select
+        placeholder="请选择制度"
+        v-model="searchList[1].value"
+        clearable
+      >
+        <el-option
+          v-for="item in sysOptions"
+          :key="item.value"
+          :label="item.value"
+          :value="item.value"
+        >
+        </el-option>
+      </el-select>
       <el-input
         placeholder="请输入文件名"
-        v-model="searchList[1].value"
+        v-model="searchList[2].value"
         clearable
       >
       </el-input>
@@ -62,18 +75,29 @@
           {{ formatTime(scope.row.updated_at) }}
         </template>
       </el-table-column>
-      <el-table-column prop="file_name" label="文件名" align="center">
+      <el-table-column prop="system" label="制度" align="center" width="100">
+      </el-table-column>
+      <el-table-column label="文件名" align="center">
+        <template slot-scope="scope">
+          {{ scope.row.file_name.split(".")[0] }}
+        </template>
       </el-table-column>
       <el-table-column prop="file_path" label="文件路径" align="center">
       </el-table-column>
-      <el-table-column prop="file_type" label="文件类型" align="center" width="55">
+      <el-table-column prop="file_type" label="文件类型" align="center" width="100">
       </el-table-column>
       <el-table-column label="操作" align="center" width="220">
         <template slot-scope="scope">
           <el-button
+            type="success"
+            size="small"
+            @click="handleDownload(scope.row.id)"
+            >下载</el-button
+          >
+          <el-button
             type="primary"
             size="small"
-            @click="handleUpdate(scope.row.id, scope.row.name, scope.row.level)"
+            @click="handleUpdate(scope.row.id, scope.row.file_name)"
             >编辑</el-button
           >
           <el-button
@@ -91,21 +115,44 @@
       <el-pagination
         @size-change="handleSizeChange"
         @current-change="handleCurrentChange"
-        :current-page="searchList[2].value"
+        :current-page="searchList[3].value"
         :page-sizes="[25, 50, 75, 100]"
-        :page-size="searchList[3].value"
+        :page-size="searchList[4].value"
         layout="total, sizes, prev, pager, next, jumper"
         :total="totalNum"
       >
       </el-pagination>
-      <el-button type="danger" size="small" @click="handleMutiDelete()"
+      <el-button type="danger" size="small" @click="handleDelete()"
         >批量删除</el-button
       >
     </div>
 
-    <el-dialog :visible.sync="uploadVisible" center>
-      <div class="uploadContainer">
+    <el-dialog class="upload-dialog" :visible.sync="uploadVisible" center>
+      <div class="upload-container">
         <UpLoad></UpLoad>
+      </div>
+    </el-dialog>
+
+    <el-dialog title="编辑文件信息表" :visible.sync="editFormVisible" center>
+      <el-form
+        ref="editForm"
+        :rules="rules"
+        :model="temp"
+        label-position="left"
+        label-width="70px"
+      >
+        <el-form-item label="文件名" prop="fileName">
+          <el-input
+            v-model="temp.fileName"
+            autocomplete="off"
+            placeholder="请设置文件名"
+          >
+          </el-input>
+        </el-form-item>
+      </el-form>
+      <div slot="footer" class="dialog-footer">
+        <el-button @click="editFormVisible = false"> 取消 </el-button>
+        <el-button type="primary" @click="updateData()"> 确认 </el-button>
       </div>
     </el-dialog>
   </div>
@@ -113,7 +160,7 @@
 
 <script>
 import { formatTime, dateFullFormatTime } from "@/util/timeFormater.js";
-import { getFileInfos } from "@/api/file.js";
+import { getFileInfos, deleteFiles, updateFileName } from "@/api/file.js";
 import UpLoad from "@/components/load/UpLoad";
 export default {
   data() {
@@ -121,11 +168,23 @@ export default {
       totalNum: 0,
       loading: true,
       uploadVisible: false,
+      editFormVisible: false,
       createdAt: [],
       tableData: [],
       selection: [],
-      temp: {},
       origin: {},
+      temp: {
+        id: "",
+        fileName: ""
+      },
+      sysOptions: [
+        {
+          value: "小时制",
+        },
+        {
+          value: "月度制",
+        },
+      ],
       typeOptions: [
         {
           value: "xlsx",
@@ -140,6 +199,10 @@ export default {
       searchList: [
         {
           label: "fileType",
+          value: "",
+        },
+        {
+          label: "system",
           value: "",
         },
         {
@@ -187,8 +250,7 @@ export default {
         ],
       },
       rules: {
-        name: [{ required: true, message: "用户名不能为空", trigger: "blur" }],
-        level: [{ required: true, message: "等级不能为空", trigger: "change" }],
+        fileName: [{ required: true, message: "文件名不能为空", trigger: "blur" }],
       },
     };
   },
@@ -226,7 +288,25 @@ export default {
       this.getTableData(params);
     },
     handleDelete(id) {
-      deleteUser(id)
+      this.$confirm('此操作将永久删除该文件, 是否继续?', '提示', {
+          confirmButtonText: '确定',
+          cancelButtonText: '取消',
+          type: 'warning'
+        }).then(() => {
+          this.deleteData(id)
+        });
+    },
+    deleteData(id){
+      console.log("yes")
+      const ids = [];
+      if (id) {
+        ids.push(parseInt(id));
+      } else {
+        this.selection.forEach((item) => {
+          ids.push(parseInt(item.id));
+        });
+      }
+      deleteFiles(ids)
         .then((res) => {
           if (res.code == 200) {
             this.handleSearch();
@@ -242,24 +322,6 @@ export default {
     handleSelectionChange(selected) {
       this.selection = selected;
     },
-    handleMutiDelete() {
-      const ids = [];
-      this.selection.forEach((item) => {
-        ids.push(item.id);
-      });
-      deleteUsers(ids)
-        .then((res) => {
-          if (res.code == 200) {
-            this.handleSearch();
-            this.$message.success(res.msg);
-          } else {
-            this.$message.warning(res.msg);
-          }
-        })
-        .catch((err) => {
-          this.$message.error(err.message);
-        });
-    },
     handleSizeChange(val) {
       this.searchList[3].value = val;
       this.handleSearch();
@@ -268,27 +330,28 @@ export default {
       this.searchList[4].value = val;
       this.handleSearch();
     },
-    handleUpdate(id, name, level) {
+    handleUpdate(id, fileName) {
       this.origin = {
-        name: name,
-        level: level,
+        fileName: fileName.split(".")[0],
       };
       this.temp = Object.assign({}, this.origin);
       this.origin.id = id;
-      this.dialogFormVisible = true;
+      this.origin.orginName = fileName
+      this.editFormVisible = true;
       this.$nextTick(() => {
-        this.$refs.dataForm.clearValidate();
+        this.$refs.editForm.clearValidate();
       });
     },
     updateData() {
-      const body = Object.assign({}, this.temp);
-      if (this.temp.name === this.origin.name) body.name = "";
-      if (this.temp.level === this.origin.level) body.level = 0;
-      updateUser(this.origin.id, body)
+      let body = {};
+      if (this.temp.fileName === this.origin.fileName){
+        body.file_name = "";
+      } else body.file_name = this.temp.fileName + "." + this.origin.orginName.split(".")[1];
+      updateFileName(this.origin.id, body)
         .then((res) => {
           if (res.code === 200) {
             this.$message.success(res.msg);
-            this.dialogFormVisible = false;
+            this.editFormVisible = false;
             this.handleSearch();
           } else {
             this.$message.warning(res.msg);
@@ -300,6 +363,9 @@ export default {
     },
     handleUpload(){
       this.uploadVisible = true
+    },
+    handleDownload(){
+      
     }
   },
   created() {
@@ -313,7 +379,7 @@ export default {
 
 <style lang="less" scoped>
 .body {
-  margin-top: 20px;
+  padding: 20px 0px;
   width: 100%;
   min-width: 1300px;
 }
@@ -321,7 +387,8 @@ export default {
 .searcher-container {
   margin-bottom: 15px;
   padding-left: max(2.7%, 35px);
-  .el-input {
+  .el-input,
+  .el-select {
     margin-left: 10px;
     width: 150px;
   }
@@ -339,11 +406,6 @@ export default {
     margin: 5px 0;
     margin-left: 10px;
   }
-
-  .el-select {
-    margin: 5px 0;
-    width: 150px;
-  }
 }
 
 .page-container {
@@ -357,7 +419,7 @@ export default {
 
   .el-button {
     width: 100px;
-    margin-left: 660px;
+    margin-left: auto;
   }
 }
 
@@ -370,23 +432,23 @@ export default {
   }
 }
 
-.body :deep(.el-dialog:first-of-type) {
+.body .upload-dialog :deep(.el-dialog) {
   max-width: 800px;
   min-width: 550px;
 
   .el-dialog__body,
-  .el-dialog__head {
+  .el-dialog__head,
+  .el-dialog__header {
     padding: 0px;
   }
 }
 
-.uploadContainer {
+.upload-container {
   :deep(.el-card),
   :deep(.el-upload),
   :deep(.el-upload-dragger) {
     width: 100% !important;
   }
-
   
 }
 </style>

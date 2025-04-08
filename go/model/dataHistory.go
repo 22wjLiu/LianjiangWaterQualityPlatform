@@ -10,7 +10,7 @@ type DataHistory struct {
 	StartTime   string `json:"start_time" gorm:"type:varchar(50);not null"`   // 起始时间
 	EndTime     string `json:"end_time" gorm:"type:varchar(50);not null"`     // 终止时间
 	StationName string `json:"station_name" gorm:"type:varchar(50);not null"` // 站名
-	System      string `json:"system" gorm:"type:varchar(50);not null"`       // 制度
+	System      string `json:"system" gorm:"type:varchar(10);not null"`       // 制度
 	Option      string `json:"option" gorm:"type:varchar(20);not null;"`      // 操作方法
 	User 				*User  `json:"-" gorm:"foreignKey:UserId;references:Id;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"` // 外键 UserId -> User.Id
 }

@@ -8,6 +8,7 @@ import (
 	"lianjiang/common"
 	"lianjiang/model"
 	"lianjiang/util"
+	"lianjiang/dto"
 	"log"
 	"os"
 	"path"
@@ -76,7 +77,7 @@ func Upload(ctx *gin.Context) {
 	}
 
 	// 尝试建立对应文件夹
-	dirPath := filepath.Join("./home/", sys.(string))
+	dirPath := filepath.Join("./home", sys.(string))
 	err = os.MkdirAll(dirPath, os.ModePerm)
 	if err != nil {
 		log.Printf("创建目录失败: %v\n", err)
@@ -111,14 +112,19 @@ func Upload(ctx *gin.Context) {
 	// 存储文件信息
 	var fileInfo model.FileInfo
 
+	isNewFile := true
+
 	// 获取数据库指针
 	db := common.GetDB()
 
-	err = db.Table("file_infos").Where("file_name = ?", file.Filename).First(&fileInfo).Error
+	err = db.Table("file_infos").Where("file_name = ? and system = ?", file.Filename, system).First(&fileInfo).Error
 
 	if err == nil {
+		isNewFile = false
 		db.Model(&fileInfo).Update("updated_at", model.Time(time.Now()))
 	} else if errors.Is(err, gorm.ErrRecordNotFound) {
+		// 制度
+		fileInfo.System = system
 		// 文件名
 		fileInfo.FileName = file.Filename
 		// 文件类型
@@ -144,24 +150,29 @@ func Upload(ctx *gin.Context) {
 		return
 	}
 
+	isErrorBeforeData := false
+
 	log.Println("开始解析上传文件...")
 
 	index, stName, start, flag, isFind:= util.FindStationNameFromFile(res, opt)
 
 	// 未找到数据段上一行标记
 	if !flag {
+		isErrorBeforeData = true
 		response.Fail(ctx, nil, "文件内容缺少数据段上一行标记")
 		return
 	}
 
 	// 未找到站名
 	if !isFind {
+		isErrorBeforeData = true
 		response.Fail(ctx, nil, "未找到站名")
 		return
 	}
 
 	// 如果站名没有注册
 	if !util.StationMap.Has(stName) {
+		isErrorBeforeData = true
 		response.Fail(ctx, nil, fmt.Sprintf("站名%s映射未注册", stName))
 		return
 	}
@@ -170,6 +181,7 @@ func Upload(ctx *gin.Context) {
 	var mapVer model.MapVersion
 
 	if err := db.Where("active = ?", 1).First(&mapVer).Error; err != nil{
+		isErrorBeforeData = true
 		log.Println("获取当前映射信息错误")
 		response.Fail(ctx, nil, "获取当前映射信息错误")
 		return
@@ -191,6 +203,7 @@ func Upload(ctx *gin.Context) {
 	`, tableName).Scan(&exists).Error
 
 	if err != nil {
+		isErrorBeforeData = true
 		log.Printf("查找数据表[%s]失败\n", tableName)
 		response.Fail(ctx, nil, "查找数据表失败")
 		return
@@ -203,6 +216,7 @@ func Upload(ctx *gin.Context) {
 		Table("data_table_infos").
 		Where("data_table_name = ?", tableName).
 		Delete(nil).Error; err != nil {
+		isErrorBeforeData = true
 		log.Printf("查找数据表[%s]失败：%v\n", tableName, err)
 		response.Fail(ctx, nil, "查找数据表失败")
 		return
@@ -225,6 +239,7 @@ func Upload(ctx *gin.Context) {
 		sql := util.BuildCreateTableSQL_Str_T(tableName, rowTime, rowStr)
 
 		if err := db.Exec(sql).Error; err != nil {
+			isErrorBeforeData = true
 			log.Printf("主数据表[%s] 创建失败\n", tableName)
 			response.Fail(ctx, nil, "主数据表创建失败")
 			return
@@ -241,6 +256,7 @@ func Upload(ctx *gin.Context) {
 		} else if errors.Is(err, gorm.ErrRecordNotFound) {
 			tableInfo.Active = true
 		} else {
+			isErrorBeforeData = true
 			log.Printf("查找主数据表[%s] 信息失败: %v\n", tableName, err)
 			response.Fail(ctx, nil, "主数据表信息查找失败")
 			if err := db.Exec("DROP TABLE IF EXISTS " + tableName).Error; err != nil {
@@ -257,6 +273,7 @@ func Upload(ctx *gin.Context) {
 		tableInfo.System = system
 
 		if err := db.Create(&tableInfo).Error; err != nil {
+			isErrorBeforeData = true
 			log.Printf("写入主数据表[%s]信息失败: %v\n", tableName, err)
 			response.Fail(ctx, nil, "写入主数据表信息失败")
 			if err := db.Exec("DROP TABLE IF EXISTS " + tableName).Error; err != nil {
@@ -270,10 +287,12 @@ func Upload(ctx *gin.Context) {
 			First(&tableInfo).
 			Error;
 		if errors.Is(err, gorm.ErrRecordNotFound) {
+			isErrorBeforeData = true
 			log.Printf("主数据表[%s] 信息不存在，出现信息同步错误\n", tableName)
 			response.Fail(ctx, nil, "主数据表信息同步错误")
 			return
 		} else if err != nil {
+			isErrorBeforeData = true
 			log.Printf("查找主数据表[%s] 信息失败: %v\n", tableName, err)
 			response.Fail(ctx, nil, "查找主数据表信息失败")
 			return
@@ -288,6 +307,7 @@ func Upload(ctx *gin.Context) {
 		tempInfo.Active = tableInfo.Active
 
 		if err := db.Table("data_table_infos").Create(&tempInfo).Error; err != nil {
+			isErrorBeforeData = true
 			log.Printf("写入主数据表[%s]信息失败: %v\n", tableName, err)
 			response.Fail(ctx, nil, "写入数据表信息失败")
 			return
@@ -296,7 +316,19 @@ func Upload(ctx *gin.Context) {
 		tableInfo = tempInfo
 	}
 
+	defer func(){
+		if isNewFile && isErrorBeforeData {
+			if err := db.Unscoped().Delete(&fileInfo).Error; err != nil {
+				log.Printf("删除新增的文件信息 [id = %d] 失败，请检查或手动删除：%v\n", fileInfo.Id, err)
+			}
+		}
+	}()
+
 	isErrorHappen := false
+
+	var dataHistory model.DataHistory
+	var fileHistory model.FileHistory
+
 	tx := db.Begin()
 
 	defer func() {
@@ -304,7 +336,7 @@ func Upload(ctx *gin.Context) {
 			return
 		}
 
-		log.Println("开始删除脏数据...")
+		log.Println("开始删除数据部分脏数据...")
 
 		deleteNoError := true
 	
@@ -363,10 +395,25 @@ func Upload(ctx *gin.Context) {
 			log.Printf("删除 表[data_table_infos] 中 id=%d 的记录失败，请检查或手动删除：%v\n", tableInfo.Id, err)
 			deleteNoError = false
 		}
-		if deleteNoError {
-			log.Println("删除脏数据成功")
+
+		// 删除已建立的历史记录
+		if dataHistory.Id != 0 {
+			if err := db.Delete(&dataHistory).Error; err != nil{
+				log.Printf("删除 表[data_histories] 中 id=%d 的记录失败，请检查或手动删除：%v\n", dataHistory.Id, err)
+				deleteNoError = false
+			}
 		}
 
+		if fileHistory.Id != 0 {
+			if err := db.Delete(&fileHistory).Error; err != nil{
+				log.Printf("删除 表[file_histories] 中 id=%d 的记录失败，请检查或手动删除：%v\n", fileHistory.Id, err)
+				deleteNoError = false
+			}
+		}
+
+		if deleteNoError {
+			log.Println("删除数据部分脏数据成功")
+		}
 	}()
 	
 	var startTime, endTime time.Time
@@ -485,21 +532,48 @@ func Upload(ctx *gin.Context) {
 					response.Fail(ctx, nil, "上传失败，时间为非递增等差排列")
 					isErrorHappen = true
 					return
-				} else if diff < time.Second {
-					row["time"] = curTime.Format(util.ReadableTimeFormat)
+				} else {
+					parsedTime := curTime.Format(util.ReadableTimeFormat)
+					dummy := make(map[string]interface{})
+					err = db.Table(tableName).Where("time = ?", parsedTime).Take(&dummy).Error
+					if err == nil {
+						isUpdate = true
+					} else if errors.Is(err, gorm.ErrRecordNotFound) {
+						isUpdate = false
+					} else {
+						log.Println("数据查重出错")
+						log.Printf("错误发生在[%d, %d]\n", i, j)
+						response.Fail(ctx, nil, fmt.Sprintf("存储数据出错，位置[%d, %d]，请检查", i, j))
+						isErrorHappen = true
+						return
+					}
+					row["time"] = parsedTime
 					continue
 				}
 
 				isTimeErr := false
 
-				diff = curTime.Sub(lastTime)
-				if diff < time.Hour-time.Second || diff > time.Hour+time.Second {
-					log.Printf("时间格式错误：数据行时间间隔不为一个小时\n")
-					log.Printf("错误发生在[%d, %d]\n", i, j)
-					log.Println("开始补充空白行...\n")
-					isTimeErr = true
-					lastTime = lastTime.Add(time.Hour)
-					break;
+				if system == "小时制" {
+					diff = curTime.Sub(lastTime)
+					if diff < time.Hour-time.Second || diff > time.Hour+time.Second {
+						log.Printf("时间格式错误：数据行时间间隔不为一个小时\n")
+						log.Printf("错误发生在[%d, %d]\n", i, j)
+						log.Println("开始补充空白行...\n")
+						isTimeErr = true
+						lastTime = lastTime.Add(time.Hour)
+						break;
+					}
+				} else {
+					expected := lastTime.AddDate(0, 1, 0)
+					if curTime.Before(expected.AddDate(0, 0, -1)) || curTime.After(expected.AddDate(0, 0, 1)) {
+						log.Printf("时间格式错误：数据行时间间隔不为一个月\n")
+						log.Printf("错误发生在[%d, %d]\n", i, j)
+						log.Println("开始补充空白行...\n")
+			
+						isTimeErr = true
+						lastTime = expected
+						break
+					}
 				}
 
 				if !isTimeErr {
@@ -507,8 +581,8 @@ func Upload(ctx *gin.Context) {
 				}
 
 				parsedTime := lastTime.Format(util.ReadableTimeFormat)
-				var dummy map[string]interface{}
-				err = db.Table(tableName).Where("time = ?", parsedTime).First(&dummy).Error
+				dummy := make(map[string]interface{})
+				err = db.Table(tableName).Where("time = ?", parsedTime).Take(&dummy).Error
 				if err == nil {
 					isUpdate = true
 				} else if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -568,13 +642,17 @@ func Upload(ctx *gin.Context) {
 		}
 	}
 
-	// 创建文件历史记录
-	if err := db.Create(&model.FileHistory{
+	fileHistory = model.FileHistory{
 		UserId:   user.Id,
+		System:   system,
+		FileType:	fileInfo.FileType,
 		FileName: fileInfo.FileName,
 		FilePath: fileInfo.FilePath,
 		Option:   "创建",
-	}).Error; err != nil {
+	}
+
+	// 创建文件历史记录
+	if err := db.Create(&fileHistory).Error; err != nil {
 		log.Printf("创建文件历史记录失败：%v\n", err)
 		response.Fail(ctx, nil, "创建文件历史记录失败")
 		isErrorHappen = true
@@ -597,15 +675,17 @@ func Upload(ctx *gin.Context) {
 		return
 	}
 
-	// 创建数据历史记录
-	if err := db.Create(&model.DataHistory{
+	dataHistory = model.DataHistory{
 		UserId:      user.Id,
 		StartTime:   startTime.Format(util.ReadableTimeFormat),
 		EndTime:     endTime.Format(util.ReadableTimeFormat),
 		StationName: stName,
 		System:      system,
 		Option:      "创建",
-	}).Error; err != nil {
+	}
+
+	// 创建数据历史记录
+	if err := db.Create(&dataHistory).Error; err != nil {
 		log.Printf("创建文件历史记录失败：%v\n", err)
 		response.Fail(ctx, nil, "创建文件历史记录失败")
 		isErrorHappen = true
@@ -663,13 +743,13 @@ func Download(ctx *gin.Context) {
 
 	user := tuser.(model.User)
 
-	// TODO 安全等级在二级以下的用户不能下载文件
+	// 安全等级在二级以下的用户不能下载文件
 	if user.Level < 2 {
 		response.Fail(ctx, nil, "权限不足")
 		return
 	}
 
-	// TODO 取出请求
+	// 取出请求
 	path := ctx.DefaultQuery("path", "/")
 	file := ctx.DefaultQuery("file", "")
 
@@ -725,6 +805,7 @@ func ShowFileInfos(ctx *gin.Context) {
 
 	cond1 := map[string]interface{}{
 		"file_type": ctx.DefaultQuery("fileType", ""),
+		"system": 	ctx.DefaultQuery("system", ""),
 	} 
 
 	db = util.DbConditionsEqual(db ,cond1)
@@ -764,36 +845,255 @@ func ShowFileInfos(ctx *gin.Context) {
 	}, "查询成功")
 }
 
-// @title    DeleteFile
-// @description   删除点集文件
+// @title    UpdateFileName
+// @description   更新点集文件名
 // @param    ctx *gin.Context       接收一个上下文
 // @return   void
-func DeleteFile(ctx *gin.Context) {
+func UpdateFileName(ctx *gin.Context){
+	// 获取登录用户
 	tuser, _ := ctx.Get("user")
 
 	user := tuser.(model.User)
-
-	// TODO 安全等级在四级以下的用户不能删除文件
+	
+	// 安全等级在四级以下的用户不能修改其它用户的信息
 	if user.Level < 4 {
 		response.Fail(ctx, nil, "权限不足")
 		return
 	}
 
-	// TODO 取出请求
-	path := ctx.DefaultQuery("path", "")
+	// 获取id
+	fileId := ctx.Params.ByName("id")
 
-	// TODO 移除文件
-	if os.Remove(path) != nil {
-		response.Fail(ctx, nil, "路径不存在")
+	// 尝试在数据库中查找文件信息
+	db := common.GetDB()
+
+	var fileInfo model.FileInfo
+
+	if db.Where("id = ?", fileId).First(&fileInfo).Error != nil {
+		response.Fail(ctx, nil, "该文件信息未记载")
 		return
 	}
 
-	// TODO 创建文件历史记录
-	common.GetDB().Create(model.FileHistory{
-		UserId:   user.Id,
-		FilePath: path,
-		Option:   "删除",
-	})
+	var fileNameInfo dto.FileNameInfo
 
-	response.Success(ctx, nil, "删除成功")
+	// 解析请求体参数
+	if err := ctx.ShouldBindJSON(&fileNameInfo); err != nil {
+		response.Fail(ctx, nil, "请求体参数解析错误")
+		return
+	}
+
+	if fileNameInfo.FileName == "" {
+		response.Fail(ctx, nil, "新文件名不能为空")
+		return
+	}
+
+	if !strings.HasSuffix(fileNameInfo.FileName, "." + fileInfo.FileType) {
+    fileNameInfo.FileName = fileNameInfo.FileName + "." + fileInfo.FileType
+	}
+
+	sys, ok := util.SysMap.Get(fileInfo.System)
+	if !ok {
+		response.Fail(ctx, nil, fmt.Sprintf("%s的制度映射未注册", fileInfo.System))
+		return
+	}
+
+	sysMapValue := sys.(string)
+
+	oldPath := filepath.Join("./home/" + sysMapValue, fileInfo.FileName)
+	newPath := filepath.Join("./home/" + sysMapValue, fileNameInfo.FileName)
+
+	// 更新真实文件的文件名
+	if err := util.UpdateFileName(oldPath, newPath); err != nil {
+		log.Printf("更新文件名失败：%v\n", err)
+		response.Fail(ctx, nil, "更新失败")
+		return
+	}
+
+	// 构建更新字段的 map
+	updates := map[string]interface{}{}
+
+	updates["file_name"] = fileNameInfo.FileName
+
+	tx := db.Begin()
+
+	result := tx.
+		Model(&model.FileInfo{}).
+		Where("id = ?", fileId).
+		Updates(updates)
+
+	if result.Error != nil {
+		tx.Rollback()
+		// 还原真实文件的文件名
+		if err := util.UpdateFileName(newPath, oldPath); err != nil {
+			log.Printf("还原文件名失败，请手动修改或检查：%v\n", err)
+		}
+		response.Fail(ctx, nil, "更新失败")
+		return
+	}
+
+	// 创建文件历史记录
+	if err := tx.Create(&model.FileHistory{
+		UserId:   user.Id,
+		FileName: fileNameInfo.FileName,
+		FilePath: fileInfo.FilePath,
+		Option:   "更新(后)",
+	}).Error; err != nil {
+		tx.Rollback()
+		log.Printf("创建文件历史记录失败：%v\n", err)
+		// 还原真实文件的文件名
+		if err1 := util.UpdateFileName(newPath, oldPath); err != nil {
+			log.Printf("还原文件名失败，请手动修改或检查：%v\n", err1)
+		}
+		response.Fail(ctx, nil, "更新失败")
+		return
+	}
+
+	// 创建文件历史记录
+	if err := tx.Create(&model.FileHistory{
+		UserId:   user.Id,
+		FileName: fileInfo.FileName,
+		FilePath: fileInfo.FilePath,
+		Option:   "更新(前)",
+	}).Error; err != nil {
+		tx.Rollback()
+		log.Printf("创建文件历史记录失败：%v\n", err)
+		// 还原真实文件的文件名
+		if err1 := util.UpdateFileName(newPath, oldPath); err != nil {
+			log.Printf("还原文件名失败，请手动修改或检查：%v\n", err1)
+		}
+		response.Fail(ctx, nil, "更新失败")
+		return
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		log.Printf("更新文件信息失败：%v\n", err)
+		// 还原真实文件的文件名
+		if err1 := util.UpdateFileName(newPath, oldPath); err != nil {
+			log.Printf("还原文件名失败，请手动修改或检查：%v\n", err1)
+		}
+		response.Fail(ctx, nil, "更新失败")
+		return
+	}
+
+	response.Success(ctx, nil, "更新成功")
+}
+
+// @title    DeleteFiles
+// @description   删除点集文件
+// @param    ctx *gin.Context       接收一个上下文
+// @return   void
+func DeleteFiles(ctx *gin.Context) {
+	// 获取登录用户
+	tuser, _ := ctx.Get("user")
+
+	user := tuser.(model.User)
+	
+	// 安全等级在四级以下的用户不能查看历史操作记录
+	if user.Level < 4 {
+		response.Fail(ctx, nil, "权限不足")
+		return
+	}
+
+	// 解析请求体
+	var resq dto.BatchDeleteId
+	if err := ctx.ShouldBindJSON(&resq); err != nil {
+		response.Fail(ctx, nil, "请求体参数解析错误")
+		return
+	}
+
+	db := common.GetDB()
+
+	var fileInfos []model.FileInfo
+
+	if db.Select("file_name, system, file_path").Where("id IN ?", resq.Ids).Find(&fileInfos).Error != nil {
+		response.Fail(ctx, nil, "删除失败")
+		return
+	}
+
+	if len(fileInfos) != len(resq.Ids) {
+		response.Fail(ctx, nil, "部分文件信息未记载")
+		return
+	}
+
+	paths := make([]string, len(fileInfos))
+
+	for i, info := range fileInfos {
+		sys, ok := util.SysMap.Get(info.System)
+		if !ok {
+			response.Fail(ctx, nil, fmt.Sprintf("%s的制度映射未注册", info.System))
+			return
+		}
+		dirPath := "./home/" + sys.(string)
+    paths[i] = filepath.Join(dirPath, info.FileName)
+	}
+
+	if err := util.DeleteFilesWithBackUp(paths); err != nil {
+		log.Println(err)
+		response.Fail(ctx, nil, "删除失败")
+		return
+	}
+
+	// 开启事务
+	tx := db.Begin()
+	
+	result := tx.Where("id IN ?", resq.Ids).Delete(&model.FileInfo{})
+
+	if result.Error != nil {
+		tx.Rollback()
+		for _, p := range paths {
+			filename := filepath.Base(p)
+			backupPath := filepath.Join(util.FileBackupDir, filename)
+			_ = util.CopyFile(backupPath, p)
+		}
+		response.Fail(ctx, nil, "删除失败")
+		return
+	}
+
+	fileHistories := make([]model.FileHistory, len(fileInfos))
+
+	for i, info := range fileInfos {
+    fileHistories[i] = model.FileHistory{
+        UserId:   user.Id,
+        FileName: info.FileName,
+        FilePath: info.FilePath,
+        Option:   "删除",
+    }
+	}
+
+	// 创建文件历史记录
+	if err := tx.Create(&fileHistories).Error; err != nil {
+    tx.Rollback()
+
+    for _, p := range paths {
+        filename := filepath.Base(p)
+        backupPath := filepath.Join(util.FileBackupDir, filename)
+
+        if err := util.CopyFile(backupPath, p); err != nil {
+            log.Printf("恢复文件失败 [%s]: %v\n", p, err)
+        }
+    }
+
+    log.Printf("创建文件历史记录失败：%v\n", err)
+    response.Fail(ctx, nil, "删除失败")
+    return
+	}
+	
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+
+    for _, p := range paths {
+			filename := filepath.Base(p)
+			backupPath := filepath.Join(util.FileBackupDir, filename)
+
+			if err := util.CopyFile(backupPath, p); err != nil {
+					log.Printf("恢复文件失败 [%s]: %v\n", p, err)
+			}
+		}
+
+		response.Fail(ctx, nil, "删除失败")
+		return
+	}
+
+	response.Success(ctx, gin.H{"num": result.RowsAffected}, "删除成功")
 }

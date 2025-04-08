@@ -63,6 +63,8 @@ func FileHistory(ctx *gin.Context) {
 
 	cond1 := map[string]interface{}{
 		"user_id": ctx.DefaultQuery("id", ""),
+		"system":  ctx.DefaultQuery("system", ""),
+		"file_type":  ctx.DefaultQuery("fileType", ""),
 		"option":  ctx.DefaultQuery("option", ""),
 	} 
 

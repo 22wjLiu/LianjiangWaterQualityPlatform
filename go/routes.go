@@ -44,14 +44,17 @@ func CollectRoute(r *gin.Engine) *gin.Engine {
 	// TODO 文件上传
 	r.POST("/upload/:system", middleware.AuthMiddleware(), controller.Upload)
 
-	// TODO 文件列表
+	// 文件列表
 	r.GET("/files", middleware.AuthMiddleware(), controller.List)
 
-	// TODO 文件下载
+	// 文件删除
+	r.DELETE("/files", middleware.AuthMiddleware(), controller.DeleteFiles)
+
+	// 文件下载
 	r.GET("/download", middleware.AuthMiddleware(), controller.Download)
 
-	// TODO 文件删除
-	r.DELETE("/file", middleware.AuthMiddleware(), controller.DeleteFile)
+	// 更新文件名
+	r.PUT("/fileName/:id", middleware.AuthMiddleware(), controller.UpdateFileName)
 
 	// 查询文件信息
 	r.GET("/fileInfos/:start/:end", middleware.AuthMiddleware(), controller.ShowFileInfos)

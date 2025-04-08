@@ -345,7 +345,7 @@ export default {
 
 <style lang="less" scoped>
 .body {
-  margin-top: 20px;
+  padding: 20px 0px;
   width: 100%;
   min-width: 1300px;
 }

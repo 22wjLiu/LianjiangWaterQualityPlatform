@@ -188,7 +188,6 @@ func UpdateUser(ctx *gin.Context) {
 	}
 
 	var userData dto.UserDto
-
 	
 	// 解析请求体参数
 	if err := ctx.ShouldBindJSON(&userData); err != nil {

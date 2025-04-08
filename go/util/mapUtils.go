@@ -23,11 +23,14 @@ var MapSqlFiles = []string{"map_versions.sql", "map_version_details.sql"}
 // 点集字段映射表
 var PointMap Map.ConcurrentMap = Map.New()
 
-// 行唯一字段映射表
+// 行字段一对一映射
 var RowOneMap Map.ConcurrentMap = Map.New()
 
-// 行多字段映射表
+// 行字段一对多映射
 var RowAllMap Map.ConcurrentMap = Map.New()
+
+// 行字段一对多公式映射
+var RowAllFormulaMap Map.ConcurrentMap = Map.New()
 
 // 制度映射表
 var SysMap Map.ConcurrentMap = Map.New()
@@ -48,6 +51,7 @@ var StationNameFlagMap Map.ConcurrentMap = Map.New()
 var MapMap = map[string]*Map.ConcurrentMap{
 	"列字段映射":    &PointMap,
 	"行字段一对多映射": &RowAllMap,
+	"行字段一对多公式映射": &RowAllFormulaMap,
 	"行字段一对一映射": &RowOneMap,
 	"时间制映射":    &SysMap,
 	"站名映射":     &StationMap,
@@ -114,6 +118,12 @@ func InitDefaultMapMap() {
 	RowAllMap.Set("最大值", "maximum_value")
 	RowAllMap.Set("平均值", "average_value")
 	RowAllMap.Set("分项类别", "item_category")
+
+	// 初始化行字段一对多公式映射表
+	RowAllFormulaMap.Set("最小值", "MIN")
+	RowAllFormulaMap.Set("最大值", "MAX")
+	RowAllFormulaMap.Set("平均值", "AVERAGE")
+	RowAllFormulaMap.Set("分项类别", "无")
 
 	// 初始化制度映射表
 	SysMap.Set("小时制", "hour")

@@ -3,13 +3,114 @@
 package util
 
 import (
+	"errors"
+	"fmt"
 	"strings"
 	"log"
 	"time"
+	"os"
+	"io"
+	"path/filepath"
 	
 	"gorm.io/gorm"
 )
 
+// 文件备份目录
+var FileBackupDir = "./.file_backup"
+
+// @title    CopyFile
+// @description   复制文件
+// @param     src, dst string			源路径，目的路径
+// @return    error			是否出错
+func CopyFile(src, dst string) error {
+	from, err := os.Open(src)
+	if err != nil {
+			return err
+	}
+	defer from.Close()
+
+	to, err := os.Create(dst)
+	if err != nil {
+			return err
+	}
+	defer to.Close()
+
+	_, err = io.Copy(to, from)
+	return err
+}
+
+// @title    DeleteFilesWithBackUp
+// @description   如果所有文件存在且可删再删除文件，并保存备份留作后续回滚
+// @param     paths []string			文件路径
+// @return    error			是否出错
+func DeleteFilesWithBackUp(paths []string) error {
+  _ = os.MkdirAll(FileBackupDir, 0755)
+
+	// 检查所有文件是否存在且可删除
+	for _, path := range paths {
+			info, err := os.Stat(path)
+			if os.IsNotExist(err) {
+				return fmt.Errorf("文件不存在: %s", path)
+			}
+			if err != nil {
+				return fmt.Errorf("无法访问文件: %s，错误: %v", path, err)
+			}
+			if info.IsDir() {
+				return fmt.Errorf("路径是目录而非文件: %s", path)
+			}
+	}
+
+	// 复制备份
+	for _, path := range paths {
+		filename := filepath.Base(path)
+		backupPath := filepath.Join(FileBackupDir, filename)
+		if err := CopyFile(path, backupPath); err != nil {
+				return fmt.Errorf("备份失败 [%s]: %w", path, err)
+		}
+	}
+
+	// 全部检查通过，开始删除
+	for _, path := range paths {
+		if err := os.Remove(path); err != nil {
+				// 删除失败，开始回滚
+				for _, p := range paths {
+						filename := filepath.Base(p)
+						backupPath := filepath.Join(FileBackupDir, filename)
+						if err := CopyFile(backupPath, p); err != nil {
+							log.Printf("恢复文件失败 [%s]: %v\n", p, err)
+						}
+				}
+				return fmt.Errorf("删除失败 [%s]，所有文件已还原", path)
+		}
+	}
+
+	return nil
+}
+
+// @title    UpdateFileName
+// @description   如果所有文件存在就重命名
+// @param     system string, newName string			制度，新文件名
+// @return    error			是否出错
+func UpdateFileName(path string, newPath string) error{
+	// 判断文件是否存在
+	info, err := os.Stat(path)
+	if os.IsNotExist(err) {
+		return fmt.Errorf("文件不存在: %s", path)
+	}
+	if err != nil {
+		return fmt.Errorf("无法访问文件: %s，错误: %v", path, err)
+	}
+	if info.IsDir() {
+		return fmt.Errorf("路径是目录而非文件: %s", path)
+	}
+
+	err = os.Rename(path, newPath)
+	if err != nil {
+    return fmt.Errorf("文件: %s, 重命名失败:%v", path, err)
+	}
+
+	return nil
+}
 
 // @title    FindStationNameFromFile
 // @description   从文件数据中找到站名并返回可录入列字段，站名，数据开始行数和是否找到站名标志
@@ -148,7 +249,13 @@ func CheckAndRecordRowOneData(db *gorm.DB, data [][]string, i int, j int, tableI
 // @return    *gorm.DB, bool																	数据库实例，是否存在一对多行字段数据
 func CheckAndRecordRowAllData(db *gorm.DB, index []string, data [][]string, i int, j int, tableId uint) (*gorm.DB, bool, error){
 	row, ok := RowAllMap.Get(data[i][j])
-	// 如果是一对多行字段
+	// 如果不是一对多行字段
+	if !ok {
+		return db, false, nil
+	}
+
+	rowAllFormula, ok := RowAllFormulaMap.Get(data[i][j])
+	// 如果没有对应的公式映射
 	if !ok {
 		return db, false, nil
 	}
@@ -162,6 +269,8 @@ func CheckAndRecordRowAllData(db *gorm.DB, index []string, data [][]string, i in
 		v,_ := PointMap.Get(key)
 		rowAllStr = append(rowAllStr, v.(string))
 	}
+
+	rowAllStr = append(rowAllStr, "rowall_formula")
 
 	rowAllTableName := row.(string)
 
@@ -192,6 +301,8 @@ func CheckAndRecordRowAllData(db *gorm.DB, index []string, data [][]string, i in
 		rowAll[index[k]] = data[i][k]
 	}
 
+	rowAll["rowall_formula"] = rowAllFormula
+
 	// 存入数据库
 	err := db.Table(rowAllTableName).Create(rowAll).Error
 	if err != nil {
@@ -202,6 +313,24 @@ func CheckAndRecordRowAllData(db *gorm.DB, index []string, data [][]string, i in
 	}
 
 	return db, true, nil
+}
+
+// @title    ExcelFloatToTime
+// @description   把excel序列号转为time.Time类型
+// @param     excelDate float64
+// @return    time.Time, error    Time类型
+func ExcelFloatToTime(excelDate float64) (time.Time, error) {
+	if excelDate <= 0 {
+		return time.Time{}, errors.New("日期序列值，不能小于0")
+	}
+	// Excel 日期起点：1899-12-30
+	const excelEpoch = "1899-12-30"
+	baseTime, err := time.Parse("2006-01-02", excelEpoch)
+	if err != nil {
+		return time.Time{}, err
+	}
+	duration := time.Duration(excelDate * float64(24*time.Hour))
+	return baseTime.Add(duration), nil
 }
 
 // @title    FixExcelTimeEdgeError

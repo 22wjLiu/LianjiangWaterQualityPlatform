@@ -19,6 +19,12 @@ export const getFileList = (path) => {
   });
 };
 
+export const deleteFiles = (ids) => {
+  return request.delete("/files", {
+    data: { ids },
+    needToken: true,
+  });
+};
 
 export const getFileInfos = (start, end, pramas) => {
   let path = "/fileInfos";
@@ -28,6 +34,12 @@ export const getFileInfos = (start, end, pramas) => {
   path += pramas;
 
   return request.get(path, {
+    needToken: true,
+  });
+};
+
+export const updateFileName = (id, body) => {
+  return request.put(`/fileName/${id}`, body, {
     needToken: true,
   });
 };

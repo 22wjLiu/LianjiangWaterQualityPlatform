@@ -6,7 +6,6 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/csv"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"lianjiang/common"
@@ -163,24 +162,6 @@ func ReadXlsx(file_path string) (res [][]string, err error) {
 		return nil, err
 	}
 	return res, nil
-}
-
-// @title    ExcelFloatToTime
-// @description   把excel序列号转为time.Time类型
-// @param     excelDate float64
-// @return    time.Time, error    Time类型
-func ExcelFloatToTime(excelDate float64) (time.Time, error) {
-	if excelDate <= 0 {
-		return time.Time{}, errors.New("日期序列值，不能小于0")
-	}
-	// Excel 日期起点：1899-12-30
-	const excelEpoch = "1899-12-30"
-	baseTime, err := time.Parse("2006-01-02", excelEpoch)
-	if err != nil {
-		return time.Time{}, err
-	}
-	duration := time.Duration(excelDate * float64(24*time.Hour))
-	return baseTime.Add(duration), nil
 }
 
 // @title    SecondToTime

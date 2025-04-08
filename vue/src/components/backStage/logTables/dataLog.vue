@@ -179,6 +179,12 @@ export default {
         {
           value: "删除",
         },
+        {
+          value: "更新(前)",
+        },
+        {
+          value: "更新(后)",
+        }
       ],
       options: [
         {
@@ -188,6 +194,14 @@ export default {
         {
           label: "删除",
           type: "danger",
+        },
+        {
+          label: "更新(前)",
+          type: "warning",
+        },
+        {
+          label: "更新(后)",
+          type: "success",
         },
       ],
       pickerOptions: {
@@ -245,7 +259,7 @@ export default {
       let type = "";
       this.options.some((item) => {
         if (item.label === option) {
-          type = item.value;
+          type = item.type;
           return true;
         }
         return false;
@@ -307,6 +321,7 @@ export default {
 .body {
   width: 100%;
   min-width: 1300px;
+  padding-bottom: 20px;
 }
 
 .searcher-container {
