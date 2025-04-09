@@ -7,10 +7,8 @@ import (
 	"crypto/tls"
 	"encoding/csv"
 	"fmt"
-	"io/ioutil"
 	"lianjiang/common"
 	"lianjiang/model"
-	"lianjiang/vo"
 	"log"
 	"math"
 	"math/rand"
@@ -34,29 +32,6 @@ var ReadableTimeFormat = "2006-01-02 15:04:05"
 
 // 转换Excel时间格式定义
 var ExcelTimeFormat = "2006/1/2 15:04"
-
-// @title    StringToSql
-// @description   将model字段转化为数据库字段
-// @param     point string			输入字符串
-// @return    sql string			sql格式的字段
-// func StringToSql(point string) (sql string) {
-// 	if len(point) <= 6 {
-// 		return strings.ToLower(point)
-// 	}
-
-// 	var builder strings.Builder
-
-// 	for i, val := range point {
-// 		// TODO 是否大写
-// 		if unicode.IsUpper(val) {
-// 			if i > 0 {
-// 				builder.WriteRune('_')
-// 			}
-// 		}
-// 		builder.WriteRune(val)
-// 	}
-// 	return strings.ToLower(builder.String())
-// }
 
 // @title    Read
 // @description   读取文件内容
@@ -162,60 +137,6 @@ func ReadXlsx(file_path string) (res [][]string, err error) {
 		return nil, err
 	}
 	return res, nil
-}
-
-// @title    SecondToTime
-// @description   把秒级的时间戳转为time格式
-// @param     sec int64	秒
-// @return    time.Time    Time类型
-func SecondToTime(sec int64) time.Time {
-	return time.Unix(sec, 0)
-}
-
-// @title    GetFiles
-// @description   获取一个目录下的所有文件
-// @param     folder string	指定目录
-// @return    []string    所有文件的文件名
-func GetFiles(folder string) ([]vo.File, error) {
-	files, err := ioutil.ReadDir("./home" + folder)
-	if err != nil {
-		return nil, err
-	}
-	res := make([]vo.File, 0)
-	for _, file := range files {
-		// TODO 尝试读出所有文件的相关信息
-		var f vo.File
-		f.Name = file.Name()
-		if folder[len(folder)-1] == '/' {
-			f.Path = folder + file.Name()
-		} else {
-			f.Path = folder + "/" + file.Name()
-		}
-		f.Size = file.Size()
-		f.LastWriteTime = file.ModTime()
-		if file.IsDir() {
-			f.Type = "Dir"
-		} else {
-			f.Type = path.Ext(file.Name())
-		}
-		res = append(res, f)
-	}
-	return res, nil
-}
-
-// @title    PathExists
-// @description   判断文件夹是否存在
-// @param     path string	指定目录
-// @return    bool, error    查看文件夹是否存在
-func PathExists(path string) (bool, error) {
-	_, err := os.Stat(path)
-	if err == nil {
-		return true, nil
-	}
-	if os.IsNotExist(err) {
-		return false, nil
-	}
-	return false, err
 }
 
 // @title    StringToFloat

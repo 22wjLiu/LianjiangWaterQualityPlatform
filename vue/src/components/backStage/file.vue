@@ -84,14 +84,19 @@
       </el-table-column>
       <el-table-column prop="file_path" label="文件路径" align="center">
       </el-table-column>
-      <el-table-column prop="file_type" label="文件类型" align="center" width="100">
+      <el-table-column
+        prop="file_type"
+        label="文件类型"
+        align="center"
+        width="100"
+      >
       </el-table-column>
       <el-table-column label="操作" align="center" width="220">
         <template slot-scope="scope">
           <el-button
             type="success"
             size="small"
-            @click="handleDownload(scope.row.id)"
+            @click="handleDownload(scope.row.id, scope.row.file_name)"
             >下载</el-button
           >
           <el-button
@@ -160,7 +165,12 @@
 
 <script>
 import { formatTime, dateFullFormatTime } from "@/util/timeFormater.js";
-import { getFileInfos, deleteFiles, updateFileName } from "@/api/file.js";
+import {
+  getFileInfos,
+  deleteFiles,
+  updateFileName,
+  download,
+} from "@/api/file.js";
 import UpLoad from "@/components/load/UpLoad";
 export default {
   data() {
@@ -175,7 +185,7 @@ export default {
       origin: {},
       temp: {
         id: "",
-        fileName: ""
+        fileName: "",
       },
       sysOptions: [
         {
@@ -250,7 +260,9 @@ export default {
         ],
       },
       rules: {
-        fileName: [{ required: true, message: "文件名不能为空", trigger: "blur" }],
+        fileName: [
+          { required: true, message: "文件名不能为空", trigger: "blur" },
+        ],
       },
     };
   },
@@ -288,16 +300,16 @@ export default {
       this.getTableData(params);
     },
     handleDelete(id) {
-      this.$confirm('此操作将永久删除该文件, 是否继续?', '提示', {
-          confirmButtonText: '确定',
-          cancelButtonText: '取消',
-          type: 'warning'
-        }).then(() => {
-          this.deleteData(id)
-        });
+      this.$confirm("此操作将永久删除选中文件, 是否继续?", "提示", {
+        confirmButtonText: "确定",
+        cancelButtonText: "取消",
+        type: "warning",
+      }).then(() => {
+        this.deleteData(id);
+      });
     },
-    deleteData(id){
-      console.log("yes")
+    deleteData(id) {
+      console.log("yes");
       const ids = [];
       if (id) {
         ids.push(parseInt(id));
@@ -336,7 +348,7 @@ export default {
       };
       this.temp = Object.assign({}, this.origin);
       this.origin.id = id;
-      this.origin.orginName = fileName
+      this.origin.orginName = fileName;
       this.editFormVisible = true;
       this.$nextTick(() => {
         this.$refs.editForm.clearValidate();
@@ -344,9 +356,11 @@ export default {
     },
     updateData() {
       let body = {};
-      if (this.temp.fileName === this.origin.fileName){
+      if (this.temp.fileName === this.origin.fileName) {
         body.file_name = "";
-      } else body.file_name = this.temp.fileName + "." + this.origin.orginName.split(".")[1];
+      } else
+        body.file_name =
+          this.temp.fileName + "." + this.origin.orginName.split(".")[1];
       updateFileName(this.origin.id, body)
         .then((res) => {
           if (res.code === 200) {
@@ -361,12 +375,37 @@ export default {
           this.$message.error(err.message);
         });
     },
-    handleUpload(){
-      this.uploadVisible = true
+    handleUpload() {
+      this.uploadVisible = true;
     },
-    handleDownload(){
-      
-    }
+    handleDownload(id, fileName) {
+      let params = "";
+      if (id) {
+        params = `?id=${id}`;
+      }
+      download(params)
+        .then((res) => {
+          // 创建 Blob 对象
+          const blob = new Blob([res.data], {
+            type: "application/vnd.ms-excel",
+          });
+
+          // 创建隐藏的下载链接并点击
+          const href = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = href;
+          a.download = fileName;
+          a.style.display = "none";
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(href);
+        })
+        .catch((err) => {
+          this.$message.error(err.message);
+          console.log(err);
+        });
+    },
   },
   created() {
     this.handleSearch();
@@ -449,6 +488,5 @@ export default {
   :deep(.el-upload-dragger) {
     width: 100% !important;
   }
-  
 }
 </style>

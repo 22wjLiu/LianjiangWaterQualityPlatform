@@ -10,7 +10,7 @@ import (
 type FileInfo struct {
 	Id        uint 	 `json:"id" gorm:"type:uint;not null"`      				 								// ID
 	System    string `json:"system" gorm:"type:varchar(10);not null"`      			  			// 制度
-	CreatedAt Time   `json:"created_at" gorm:"type:timestamp;not null"`  								// 创建时间
+	CreatedAt Time   `json:"created_at" gorm:"type:timestamp;not null;autoCreateTime"`  // 创建时间
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at"`														// 删除时间
 	UpdatedAt Time   `json:"updated_at" gorm:"type:timestamp;not null;default:current_timestamp"`  // 更新时间
 	FileName  string `json:"file_name" gorm:"type:varchar(50);not null"` 								// 文件名

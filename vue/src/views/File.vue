@@ -28,20 +28,18 @@ export default {
   },
   methods: {
     getFileList() {
-      getFileList("path=/hour")
+      getFileList("?system=小时制")
         .then((res) => {
           this.hourList = res.data.files;
         })
         .catch((err) => {
-          this.$message.warning(err.message);
           console.log(err);
         });
-      getFileList("path=/month")
+      getFileList("?system=月度制")
         .then((res) => {
           this.monthList = res.data.files;
         })
         .catch((err) => {
-          this.$message.warning(err.message);
           console.log(err);
         });
     },

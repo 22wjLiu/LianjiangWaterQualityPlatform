@@ -1,7 +1,7 @@
 import request from "@/util/request";
 
-export const download = (path, file) => {
-  return request.get(`/download?${path}${file}`, {
+export const download = (pramas) => {
+  return request.get("/download" + pramas, {
     needToken: true,
     responseType: "arraybuffer",
   });
@@ -13,8 +13,8 @@ export const upload = (system, data) => {
   });
 };
 
-export const getFileList = (path) => {
-  return request.get(`/files?${path}`, {
+export const getFileList = (pramas) => {
+  return request.get("/files" + pramas, {
     needToken: true,
   });
 };

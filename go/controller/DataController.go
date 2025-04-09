@@ -324,6 +324,11 @@ func ShowData(ctx *gin.Context) {
 	// 获取站名
 	name := ctx.Params.ByName("name")
 
+	if name == "" {
+		response.Fail(ctx, nil, "不存在站名数据")
+		return
+	}
+
 	_, ok := util.StationMap.Get(name)
 
 	if !ok {

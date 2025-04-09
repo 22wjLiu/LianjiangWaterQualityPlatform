@@ -64,7 +64,7 @@
       </el-table-column>
       <el-table-column prop="user_id" label="用户ID" align="center">
       </el-table-column>
-      <el-table-column prop="version_name" label="映射版本" align="center">
+      <el-table-column prop="ver_name" label="映射版本名" align="center">
       </el-table-column>
       <el-table-column prop="key" label="键" align="center"> </el-table-column>
       <el-table-column prop="value" label="值" align="center">
@@ -124,7 +124,7 @@ export default {
           value: "",
         },
         {
-          label: "version_name",
+          label: "ver_name",
           value: "",
         },
         {
@@ -182,6 +182,18 @@ export default {
         {
           label: "更新(后)",
           type: "success",
+        },
+        {
+          label: "创建(版本)",
+          type: "primary",
+        },
+        {
+          label: "删除(版本)",
+          type: "success",
+        },
+        {
+          label: "系统恢复",
+          type: "danger",
         },
       ],
       pickerOptions: {
@@ -261,6 +273,15 @@ export default {
       this.selection = selected;
     },
     handleDelete(id) {
+      this.$confirm("此操作将永久删除选中日志, 是否继续?", "提示", {
+        confirmButtonText: "确定",
+        cancelButtonText: "取消",
+        type: "warning",
+      }).then(() => {
+        this.deleteData(id);
+      });
+    },
+    deleteData(id) {
       const ids = [];
       if (id) {
         ids.push(parseInt(id));

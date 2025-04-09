@@ -12,5 +12,4 @@ type FileHistory struct {
 	FileType  string `json:"file_type" gorm:"type:varchar(20);not null"`	// 文件类型
 	FilePath  string `json:"file_path" gorm:"type:varchar(100);not null"` // 文件路径
 	Option    string `json:"option" gorm:"type:varchar(20);not null;"`   // 操作方法
-	User 			*User  `json:"-" gorm:"foreignKey:UserId;references:Id;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"` // 外键 UserId -> User.Id
 }

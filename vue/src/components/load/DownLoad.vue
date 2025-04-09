@@ -9,9 +9,9 @@
       <el-select v-model="value" placeholder="请选择">
         <el-option
           v-for="item in list"
-          :key="item.name"
-          :label="item.title"
-          :value="item.name"
+          :key="item.id"
+          :label="item.file_name"
+          :value="item.id"
         ></el-option>
       </el-select>
       <el-button type="primary" @click="download">点击下载</el-button>
@@ -30,29 +30,34 @@ export default {
   },
   methods: {
     download() {
-      const system = this.sort === "小时制" ? "hour" : "month";
-      const path = "path=/" + system + "/" + this.value;
-      const filename = "&file=" + this.value;
-      download(path, filename)
+      let params = "";
+      if (this.value) {
+        params = `?id=${this.value}`;
+      }
+      download(params)
         .then((res) => {
-          // Blob 可以将response的二进制流文件下载到本地
+          // 创建 Blob 对象
           const blob = new Blob([res.data], {
             type: "application/vnd.ms-excel",
           });
-          // 创建下载的链接
-          const href = window.URL.createObjectURL(blob);
-          const downloadElement = document.createElement("a");
-          downloadElement.href = href;
-          downloadElement.style.display = "none";
-          // 下载后的文件名
-          downloadElement.download = this.value;
-          document.body.appendChild(downloadElement);
-          // 点击下载
-          downloadElement.click();
-          // 下载完成后移除元素
-          document.body.removeChild(downloadElement);
-          // 释放掉blob对象
-          window.URL.revokeObjectURL(href);
+
+          // 提取文件名
+          let fileName = "下载文件.xlsx";
+          const matchedItem = this.list.find(item => item.id === this.value);
+          if (matchedItem) {
+            fileName = matchedItem.file_name;
+          }
+
+          // 创建隐藏的下载链接并点击
+          const href = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = href;
+          a.download = fileName;
+          a.style.display = "none";
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(href);
         })
         .catch((err) => {
           this.$message.error(err.message);

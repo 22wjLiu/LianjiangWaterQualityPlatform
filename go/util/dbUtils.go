@@ -10,14 +10,66 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"lianjiang/common"
+	"lianjiang/model"
 	
 	"gorm.io/gorm"
 
 	"github.com/spf13/viper"
 )
 
+// 系统用户ID
+var sysUserId uint = 911
+
 // 自定义错误变量
 var ErrMissingBackupFile = errors.New("缺少sql备份文件")
+
+// @title    InitSysUser
+// @description   初始化系统用户
+// @param     无入参
+// @return    error	是否出错
+func InitSysUser() error {
+	// 获取数据库指针
+	db := common.GetDB()
+
+	var sysUser model.User
+
+	err := db.Model(&model.User{}).Unscoped().Where("id = ?", sysUserId).First(&sysUser).Error
+
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return fmt.Errorf("查找系统用户失败")
+	} else if err == nil {
+		return nil
+	}
+
+	sysUser =  model.User{
+		Id: sysUserId,
+		Name: "systemYA&&&¥¥¥¥¥",
+		Email: "-",
+		Password: "-",
+		Level:	-1,
+	}
+
+	// 开启事务
+	tx := db.Begin()
+
+	if err := tx.Create(&sysUser).Error; err != nil {
+		tx.Rollback()
+		return fmt.Errorf("创建系统用户失败")
+	}
+
+	if err := tx.Delete(&sysUser).Error; err != nil {
+		tx.Rollback()
+		return fmt.Errorf("隐藏系统用户失败")
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		return fmt.Errorf("初始化系统用户失败")
+	}
+
+	return nil
+}
 
 // @title    HasBackUpSql
 // @description   判断是否存在sql备份文件

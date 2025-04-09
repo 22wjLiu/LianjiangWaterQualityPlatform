@@ -99,27 +99,17 @@ func CollectRoute(r *gin.Engine) *gin.Engine {
 	// 查询映射类型
 	r.GET("/mapTables", middleware.AuthMiddleware(), controller.ShowMapTables)
 
-	// 查询当前映射表
-	r.GET("/curMaps", middleware.AuthMiddleware(), controller.ShowCurrentMaps)
+	// 创建映射版本
+	r.POST("/mapVersion", middleware.AuthMiddleware(), controller.CreateMapVersion)
+
+	// 删除映射版本
+	r.DELETE("/mapVersion", middleware.AuthMiddleware(), controller.DeleteMapVersion)
+
+	// 查询映射版本信息
+	r.GET("/mapVersions/:start/:end", middleware.AuthMiddleware(), controller.ShowMapVersions)
 
 	// 通过站名和映射类型查询映射信息
 	r.GET("/mapInfos/:mapType/:stationName", middleware.AuthMiddleware(), controller.ShowActiveMapInfosByStationName)
-
-
-	// 查询映射主键
-	r.GET("/map/:id", middleware.AuthMiddleware(), controller.ShowMapKeys)
-
-	// TODO 查看映射键的值
-	r.GET("/map/:id/:key", middleware.AuthMiddleware(), controller.ShowMapValue)
-
-	// TODO 通过同名键值创建映射
-	r.PUT("/map/:id", middleware.AuthMiddleware(), controller.CreateMapKey)
-
-	// TODO 更新映射键值对
-	r.PUT("/map/:id/:key", middleware.AuthMiddleware(), controller.CreateMapValue)
-
-	// TODO 删除映射
-	r.DELETE("/map/:id/:key", middleware.AuthMiddleware(), controller.DeleteMapKey)
 
 	// // TODO 预测
 	// r.GET("/forecast", middleware.AuthMiddleware(), controller.Forecast)

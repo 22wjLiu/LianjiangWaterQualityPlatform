@@ -277,6 +277,15 @@ export default {
       this.selection = selected;
     },
     handleDelete(id) {
+      this.$confirm("此操作将永久删除选中用户, 是否继续?", "提示", {
+        confirmButtonText: "确定",
+        cancelButtonText: "取消",
+        type: "warning",
+      }).then(() => {
+        this.deleteData(id);
+      });
+    },
+    deleteData(id) {
       const ids = [];
       if (id) {
         ids.push(parseInt(id));

@@ -121,7 +121,9 @@ func Upload(ctx *gin.Context) {
 
 	if err == nil {
 		isNewFile = false
-		db.Model(&fileInfo).Update("updated_at", model.Time(time.Now()))
+		db.Model(&fileInfo).Updates(map[string]interface{}{
+			"updated_at": model.Time(time.Now()),
+		})
 	} else if errors.Is(err, gorm.ErrRecordNotFound) {
 		// 制度
 		fileInfo.System = system
@@ -712,26 +714,29 @@ func Upload(ctx *gin.Context) {
 // @param    ctx *gin.Context       接收一个上下文
 // @return   void
 func List(ctx *gin.Context) {
+	// 取出制度
+	system := ctx.DefaultQuery("system", "")
 
-	// 取出请求
-	path := ctx.DefaultQuery("path", "/")
-
-	// 获得hour目录下的所有文件
-	files, err := util.GetFiles(path)
-
-	if err != nil {
-		if path == "/month" {
-			response.Fail(ctx, nil, "未上传月度制文件")
-		} else if path == "/hour" {
-			response.Fail(ctx, nil, "未上传小时制文件")
-		} else {
-			response.Fail(ctx, nil, "无法处理该文件列表获取请求")
-		}
+	if system == "" {
+		response.Fail(ctx, nil, "参数错误")
 		return
 	}
 
-	response.Success(ctx, gin.H{"files": files}, "请求成功")
+	// 获取数据库指针
+	db := common.GetDB()
 
+	var fileNames []dto.FileNameInfo
+
+	if err := db.
+		Model(&model.FileInfo{}).
+		Select("id, file_name").
+		Where("system = ?", system).
+		Find(&fileNames).Error; err != nil {
+		response.Fail(ctx, nil, "文件信息不存在")
+		return
+	}
+
+	response.Success(ctx, gin.H{"files": fileNames}, "请求成功")
 }
 
 // @title    Download
@@ -749,13 +754,48 @@ func Download(ctx *gin.Context) {
 		return
 	}
 
-	// 取出请求
-	path := ctx.DefaultQuery("path", "/")
-	file := ctx.DefaultQuery("file", "")
+	// 取出文件信息ID
+	fileId := ctx.DefaultQuery("id", "")
 
-	ctx.Writer.Header().Add("Content-Disposition", fmt.Sprintf("attachment; filename=%s", file))
-	ctx.File("./home" + path)
-	response.Success(ctx, nil, "请求成功")
+	if fileId == "" {
+		response.Fail(ctx, nil, "参数错误")
+		return
+	}
+
+	// 获取数据库指针
+	db := common.GetDB()
+
+	var fileInfo model.FileInfo
+
+	if err := db.Model(&model.FileInfo{}).Where("id = ?", fileId).First(&fileInfo).Error; err != nil {
+		response.Fail(ctx, nil, "文件信息不存在")
+		return
+	}
+
+	sys, ok := util.SysMap.Get(fileInfo.System)
+
+	if !ok {
+		response.Fail(ctx, nil, fmt.Sprintf("%s的制度映射未注册", fileInfo.System))
+		return
+	}
+
+	fullPath := filepath.Join("./home/" + sys.(string), fileInfo.FileName)
+
+	info, err := os.Stat(fullPath)
+	if os.IsNotExist(err) {
+		response.Fail(ctx, nil, "文件不存在")
+		return
+	}
+	if err != nil {
+		response.Fail(ctx, nil, "文件不可访问")
+		return
+	}
+	if info.IsDir() {
+		response.Fail(ctx, nil, "文件不存在")
+		return
+	}
+
+	ctx.File(fullPath)
 }
 
 // @title    ShowFileInfos
@@ -951,8 +991,10 @@ func UpdateFileName(ctx *gin.Context){
 	// 创建文件历史记录
 	if err := tx.Create(&model.FileHistory{
 		UserId:   user.Id,
+		System:		fileInfo.System,
 		FileName: fileInfo.FileName,
 		FilePath: fileInfo.FilePath,
+		FileType: fileInfo.FileType,
 		Option:   "更新(前)",
 	}).Error; err != nil {
 		tx.Rollback()
@@ -1055,8 +1097,10 @@ func DeleteFiles(ctx *gin.Context) {
 	for i, info := range fileInfos {
     fileHistories[i] = model.FileHistory{
         UserId:   user.Id,
+				System:		info.System,
         FileName: info.FileName,
         FilePath: info.FilePath,
+				FileType: info.FileType,
         Option:   "删除",
     }
 	}

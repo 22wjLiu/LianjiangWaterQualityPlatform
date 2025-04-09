@@ -12,5 +12,4 @@ type DataHistory struct {
 	StationName string `json:"station_name" gorm:"type:varchar(50);not null"` // 站名
 	System      string `json:"system" gorm:"type:varchar(10);not null"`       // 制度
 	Option      string `json:"option" gorm:"type:varchar(20);not null;"`      // 操作方法
-	User 				*User  `json:"-" gorm:"foreignKey:UserId;references:Id;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"` // 外键 UserId -> User.Id
 }

@@ -209,21 +209,9 @@ func MapHistory(ctx *gin.Context) {
 		return
 	}
 
-	db := common.GetDB().
-		Table("map_histories").
-		Select(`
-		map_histories.created_at,
-		map_histories.id,
-		map_histories.user_id,
-		map_histories.key,
-		map_histories.value,
-		map_histories.option,
-		map_versions.version_name AS version_name
-	`).
-	Joins("LEFT JOIN map_versions ON map_histories.ver_id = map_versions.id")
+	db := common.GetDB().Table("map_histories")
 	
-
-	var mapHistories []dto.MapHistoryWithVerName
+	var mapHistories []model.MapHistory
 
 	// 读取参数请求
 	start := ctx.Params.ByName("start")
@@ -259,7 +247,7 @@ func MapHistory(ctx *gin.Context) {
 	db = util.DbConditionsEqual(db ,cond1)
 
 	cond2 := map[string]interface{}{
-		"version_name": ctx.DefaultQuery("version_name", ""),
+		"ver_name": ctx.DefaultQuery("ver_name", ""),
 		"key":  ctx.DefaultQuery("key", ""),
 	} 
 

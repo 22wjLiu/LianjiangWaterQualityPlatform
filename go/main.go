@@ -31,6 +31,11 @@ func main() {
 	r := gin.Default()
 	r = CollectRoute(r)
 
+	// 初始化系统用户
+	if err := util.InitSysUser(); err != nil {
+		log.Fatal("初始化系统用户失败：", err)
+	}
+
 	// 初始化映射表
 	log.Println("开始初始化映射表...")
 	if err := util.InitMapMap(); err != nil {

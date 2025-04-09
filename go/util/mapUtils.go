@@ -180,19 +180,11 @@ func InitMapMap() error {
 			tx := db.Begin()
 
 			mapVer.Active = true
+			mapVer.VersionName = "默认版本"
 
 			if err := tx.Create(&mapVer).Error; err != nil {
 				tx.Rollback()
 				return err
-			}
-
-			if err := tx.
-				Model(&model.MapVersion{}).
-				Where("id = ?", mapVer.Id).
-				Update("version_name", fmt.Sprintf("版本%d", mapVer.Id)).
-				Error; err != nil {
-					tx.Rollback()
-					return err
 			}
 
 			var details []model.MapVersionDetail
@@ -210,6 +202,17 @@ func InitMapMap() error {
 			}
 	
 			if err := tx.Create(&details).Error; err != nil {
+				tx.Rollback()
+				return err
+			}
+
+			if err := tx.
+				Create(&model.MapHistory{
+					UserId: sysUserId,
+					VerName: mapVer.VersionName,
+					Option: "创建(版本)",
+				}).
+			Error; err != nil {
 				tx.Rollback()
 				return err
 			}
@@ -253,6 +256,16 @@ func InitMapMap() error {
 		if err := db.Where("ver_id = ?", mapVer.Id).Find(&details).Error; err != nil {
 			return err
 		}
+
+		if err := db.
+		Create(&model.MapHistory{
+			UserId: sysUserId,
+			Option: "系统恢复",
+		}).
+		Error; err != nil {
+			return err
+		}
+
 	} else if result_2.Error != nil {
 		return result_2.Error
 	}

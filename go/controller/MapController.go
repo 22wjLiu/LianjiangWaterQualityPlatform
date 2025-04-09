@@ -3,6 +3,7 @@
 package controller
 
 import (
+	"errors"
 	"fmt"
 	"lianjiang/common"
 	"lianjiang/model"
@@ -10,6 +11,7 @@ import (
 	"lianjiang/util"
 	"lianjiang/dto"
 	"strconv"
+	"time"
 
 	"gorm.io/gorm"
 
@@ -128,11 +130,98 @@ func ShowActiveMapInfosByStationName(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"mapInfos": mapInfos}, "请求成功")
 }
 
-// @title    ShowCurrentMaps
-// @description   查询当前映射表
+// @title    ShowMapVersions
+// @description   查询映射版本信息
 // @param    ctx *gin.Context       接收一个上下文
 // @return   void
-func ShowCurrentMaps(ctx *gin.Context) {
+func ShowMapVersions(ctx *gin.Context) {
+	// 获取登录用户
+	tuser, _ := ctx.Get("user")
+
+	user := tuser.(model.User)
+	
+	// 安全等级在四级以下的用户不能查询用户信息
+	if user.Level < 4 {
+		response.Fail(ctx, nil, "权限不足")
+		return
+	}
+
+	db := common.GetDB()
+
+	db = db.Table("map_versions")
+
+	// 读取参数请求
+	start := ctx.Params.ByName("start")
+
+	if start != "" && start != "null" {
+		start, err := time.Parse(util.ReadableTimeFormat, start)
+		if err == nil{
+			db = db.Where("created_at >= ?", start)
+		} else {
+			response.Fail(ctx, nil, "错误的文件日志开始时间")
+			return
+		}
+	}
+
+	end := ctx.Params.ByName("end")
+
+	if end != "" && end != "null" {
+		end, err := time.Parse(util.ReadableTimeFormat, end)
+		if err == nil{
+			db = db.Where("created_at <= ?", end)
+		} else {
+			response.Fail(ctx, nil, "错误的数据日志结束时间")
+			return
+		}
+	}
+
+	cond1 := map[string]interface{}{
+		"active": ctx.DefaultQuery("active", ""),
+	} 
+
+	db = util.DbConditionsEqual(db ,cond1)
+
+	cond2 := map[string]interface{}{
+		"version_name":  ctx.DefaultQuery("version_name", ""),
+	}
+
+	db = util.DbConditionsLike(db ,cond2)
+
+	// 查询总数
+	var total int64
+	dbCount := db.Session(&gorm.Session{})
+	dbCount.Count(&total)
+
+	// 获取分页
+	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(ctx.DefaultQuery("pageSize", "25"))
+	
+	offset := (page - 1) * pageSize
+
+	var mapVersions []model.MapVersion
+
+	result := db.
+		Limit(pageSize).
+		Offset(offset).
+		Find(&mapVersions)
+
+	if result.Error != nil {
+		response.Fail(ctx, nil, "参数有误")
+		return
+	}
+	
+	// 返回分页数据
+	response.Success(ctx, gin.H{
+		"mapVersions": mapVersions,
+		"total": total,
+	}, "查询成功")
+}
+
+// @title    ShowMapInfos
+// @description   查询映射信息
+// @param    ctx *gin.Context       接收一个上下文
+// @return   void
+func ShowMapInfos(ctx *gin.Context) {
 	// 获取登录用户
 	tuser, _ := ctx.Get("user")
 
@@ -146,6 +235,7 @@ func ShowCurrentMaps(ctx *gin.Context) {
 
 	var mapVer model.MapVersion
 
+	// 获取数据库指针
 	db := common.GetDB()
 
 	if err := db.Where("active = ?", 1).First(&mapVer).Error; err != nil {
@@ -197,6 +287,241 @@ func ShowCurrentMaps(ctx *gin.Context) {
 		"maps": maps,
 		"total": total,
 	}, "查询成功")
+}
+
+// @title    CreateMapVersion
+// @description   创建映射版本
+// @param    ctx *gin.Context       接收一个上下文
+// @return   void
+func CreateMapVersion(ctx *gin.Context) {
+	// 获取登录用户
+	tuser, _ := ctx.Get("user")
+
+	user := tuser.(model.User)
+	
+	// 安全等级在四级以下的用户不能查询用户信息
+	if user.Level < 4 {
+		response.Fail(ctx, nil, "权限不足")
+		return
+	}
+
+	isCopy := ctx.DefaultQuery("isCopy", "true")
+
+	var newMapVersion dto.MapVersionName
+
+	if err := ctx.ShouldBindJSON(&newMapVersion); err != nil {
+		response.Fail(ctx, nil, "请求数据格式错误")
+		return
+	}
+
+	versionName := newMapVersion.VersionName
+	if versionName == "" {
+		response.Fail(ctx, nil, "版本名不能为空")
+		return
+	}
+
+	// 获取数据库指针
+	db := common.GetDB()
+
+	var mapVer model.MapVersion
+
+	err := db.
+		Model(&model.MapVersion{}).
+		Where("version_name = ?", versionName).
+		First(&mapVer).
+		Error
+
+	if err == nil {
+		response.Fail(ctx, nil, "版本名重复")
+		return
+	} else if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		response.Fail(ctx, nil, "创建失败")
+		return
+	}
+
+	var mapDetails []model.MapVersionDetail
+
+	if isCopy == "true" {
+		var activeVersion model.MapVersion
+
+		err = db.
+			Where("active = ?", 1).
+			First(&activeVersion).
+			Error
+		
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			response.Fail(ctx, nil, "没有找到使用中的映射版本信息")
+			return
+		} else if err != nil {
+			response.Fail(ctx, nil, "创建失败")
+			return
+		}
+
+		err = db.
+			Model(&model.MapVersionDetail{}).
+			Select("`table`, `key`, `value`").
+			Where("ver_id = ?", activeVersion.Id).
+			Find(&mapDetails).
+			Error
+		
+		if err != nil {
+			response.Fail(ctx, nil, "创建失败")
+			return
+		}
+	}
+
+	mapVer.VersionName = versionName
+	mapVer.Active = false;
+
+	tx := db.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	if err := tx.
+		Model(&model.MapVersion{}).
+		Create(&mapVer).
+		Error; err != nil {
+		tx.Rollback()
+		response.Fail(ctx, nil, "创建失败")
+		return
+	}
+
+	if len(mapDetails) > 0 {
+		for i, _ := range mapDetails {
+			mapDetails[i].VerId = mapVer.Id
+		}
+	
+		if err := tx.
+			Model(&model.MapVersionDetail{}).
+			Create(&mapDetails).
+			Error; err != nil {
+			tx.Rollback()
+			response.Fail(ctx, nil, "创建失败")
+			return
+		}
+	}
+
+	if err := tx.
+		Create(&model.MapHistory{
+			UserId: user.Id,
+			VerName: versionName,
+			Option: "创建(版本)",
+		}).
+		Error; err != nil {
+		tx.Rollback()
+		response.Fail(ctx, nil, "创建失败")
+		return
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		response.Fail(ctx, nil, "创建失败")
+		return
+	}
+
+	response.Success(ctx, nil, "创建成功")
+}
+
+// @title    DeleteMapVersion
+// @description   删除映射版本
+// @param    ctx *gin.Context       接收一个上下文
+// @return   void
+func DeleteMapVersion(ctx *gin.Context) {
+	// 获取登录用户
+	tuser, _ := ctx.Get("user")
+
+	user := tuser.(model.User)
+	
+	// 安全等级在四级以下的用户不能查询用户信息
+	if user.Level < 4 {
+		response.Fail(ctx, nil, "权限不足")
+		return
+	}
+
+	// 解析请求体
+	var resq dto.BatchDeleteId
+	if err := ctx.ShouldBindJSON(&resq); err != nil {
+		response.Fail(ctx, nil, "请求体参数解析错误")
+		return
+	}
+
+	db := common.GetDB()
+
+	// 查找相应表信息
+	var tableInfos []model.DataTableInfo
+
+	if err := db.
+		Model(&model.DataTableInfo{}).
+		Where("map_ver_id in ?", resq.Ids).
+		Find(&tableInfos).
+		Error; err != nil {
+		response.Fail(ctx, nil, "查找相关表信息出错")
+		return
+	}
+
+	// 查找相应版本名
+	var mapVerNames []dto.MapVersionName
+
+	if err := db.
+		Model(&model.MapVersion{}).
+		Select("version_name").
+		Where("id in ?", resq.Ids).
+		Find(&mapVerNames).
+		Error; err != nil {
+		response.Fail(ctx, nil, "查找相关表信息出错")
+		return
+	}
+
+	// 开启事务
+	tx := db.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	for _, info := range tableInfos {
+		if err := tx.Exec("DROP TABLE IF EXISTS " + info.DataTableName).Error; err != nil {
+			tx.Rollback()
+			response.Fail(ctx, nil, "删除失败")
+			return
+		}
+	}
+	
+	if err := tx.
+		Model(&model.MapVersion{}).
+		Where("id in ?", resq.Ids).
+		Delete(nil).
+		Error; err != nil {
+			tx.Rollback()
+			response.Fail(ctx, nil, "删除失败")
+			return
+	}
+
+	for _, name := range mapVerNames {
+		if err := tx.
+		Create(&model.MapHistory{
+			UserId: user.Id,
+			VerName: name.VersionName,
+			Option: "删除(版本)",
+		}).
+		Error; err != nil {
+			tx.Rollback()
+			response.Fail(ctx, nil, "删除失败")
+			return
+		}
+	} 
+
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		response.Fail(ctx, nil, "删除失败")
+		return
+	}
+
+	response.Success(ctx, nil, "删除成功")
 }
 
 // @title    CreateMapKey

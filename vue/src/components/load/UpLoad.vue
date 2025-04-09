@@ -82,12 +82,18 @@ export default {
       this.$refs.uploadElement.clearFiles();
     },
     uploadFile() {
-      //
+      const loading = this.$loading({
+          lock: true,
+          text: '文件上传中',
+          spinner: 'el-icon-loading',
+          background: 'rgba(0, 0, 0, 0.7)'
+      });
       this.filelist.forEach((item) => {
         const formData = new FormData();
         formData.append("file", item.raw);
         upload(this.system, formData)
           .then((res) => {
+            loading.close()
             if (res.code === 200) {
               this.$message.success(`${item.name} 上传成功`);
             } else if (res.code === 400) {
@@ -102,6 +108,7 @@ export default {
             }
           })
           .catch((err) => {
+            loading.close()
             console.log(err);
             this.$message.error(err.message);
           });
