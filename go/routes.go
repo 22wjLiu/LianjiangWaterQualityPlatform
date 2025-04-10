@@ -105,13 +105,22 @@ func CollectRoute(r *gin.Engine) *gin.Engine {
 	// 删除映射版本
 	r.DELETE("/mapVersion", middleware.AuthMiddleware(), controller.DeleteMapVersion)
 
+	// 切换映射版本
+	r.PUT("/changeMapVersion", middleware.AuthMiddleware(), controller.ChangeMapVersion)
+
 	// 查询映射版本信息
 	r.GET("/mapVersions/:start/:end", middleware.AuthMiddleware(), controller.ShowMapVersions)
 
-	// 通过站名和映射类型查询映射信息
-	r.GET("/mapInfos/:mapType/:stationName", middleware.AuthMiddleware(), controller.ShowActiveMapInfosByStationName)
+	// 查询映射详情
+	r.GET("/mapInfos/:id", middleware.AuthMiddleware(), controller.ShowMapInfos)
 
-	// // TODO 预测
+	// 通过站名和映射类型查询映射信息
+	r.GET("/mapInfosWithStation/:mapType/:stationName", middleware.AuthMiddleware(), controller.ShowActiveMapInfosByStationName)
+
+	// 创建映射
+	r.POST("/createMap/:id", middleware.AuthMiddleware(), controller.CreateMap)	
+
+	// 预测
 	// r.GET("/forecast", middleware.AuthMiddleware(), controller.Forecast)
 	
 	return r

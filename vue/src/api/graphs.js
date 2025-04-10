@@ -31,7 +31,7 @@ export const getTimeRange = (name, system) => {
 };
 
 export const getActiveMapInfosByStationName = (mapType, stationName) => {
-  return request.get(`/mapInfos/${mapType}/${stationName}`, {
+  return request.get(`/mapInfosWithStation/${mapType}/${stationName}`, {
     needToken: true,
   });
 };

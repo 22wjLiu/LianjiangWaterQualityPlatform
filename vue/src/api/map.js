@@ -6,6 +6,17 @@ export const getMapTables = () => {
   });
 };
 
+export const getMapInfos = (id, pramas) => {
+  let path = "/mapInfos";
+
+  path += id ? `/${id}` : "/null";
+  path += pramas;
+  
+  return request.get(path, {
+    needToken: true,
+  });
+};
+
 export const getMapVersions = (start, end, pramas) => {
   let path = "/mapVersions";
 
@@ -18,8 +29,18 @@ export const getMapVersions = (start, end, pramas) => {
   });
 };
 
-export const createMapVersion = (pramas, data) => {
-  return request.post(`/mapVersion${pramas}`, data, {
+export const createMapVersion = (pramas, body) => {
+  return request.post(`/mapVersion${pramas}`, body, {
+    needToken: true,
+  });
+};
+
+export const createMap = (id, body) => {
+  let path = "/createMap";
+
+  path += id ? `/${id}` : "/null";
+
+  return request.post(path, body, {
     needToken: true,
   });
 };
@@ -27,6 +48,12 @@ export const createMapVersion = (pramas, data) => {
 export const deleteMapVersion = (ids) => {
   return request.delete("/mapVersion", {
     data: { ids },
+    needToken: true,
+  });
+};
+
+export const changeMapVersion = (pramas) => {
+  return request.put(`/changeMapVersion${pramas}`, {
     needToken: true,
   });
 };

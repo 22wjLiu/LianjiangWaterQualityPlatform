@@ -152,6 +152,7 @@ export default {
   data() {
     return {
       totalNum: 0,
+      curParams: "",
       loading: true,
       dialogFormVisible: false,
       tableData: [],
@@ -248,6 +249,10 @@ export default {
     formatTime,
     dateFullFormatTime,
     getTableData(params) {
+      if (params !== this.curParams) {
+        this.searchList[4].value = 1;
+        this.curParams = params;
+      }
       const start = this.createdAt ? this.createdAt[0] : "";
       const end = this.createdAt ? this.createdAt[1] : "";
       const query = params ? `?${params}` : "";

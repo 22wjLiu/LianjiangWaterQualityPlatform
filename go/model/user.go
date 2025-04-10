@@ -8,8 +8,8 @@ import (
 
 // user			定义用户
 type User struct {
-	Id		   uint   `json:"id" gorm:"type:uint;not null;unique"`																			// 用户ID
-	CreatedAt  Time   `json:"created_at" gorm:"type:timestamp;not null"`  														// 创建时间
+	Id		   	 uint   `json:"id" gorm:"type:uint;not null;unique"`																		// 用户ID
+	CreatedAt  Time   `json:"created_at" gorm:"type:datetime;autoCreateTime"`  												// 创建时间
 	UpdatedAt  Time   `json:"updated_at" gorm:"type:timestamp;not null;default:current_timestamp"`  	// 更新时间
 	DeletedAt  gorm.DeletedAt `gorm:"index" json:"deleted_at"`																				// 删除时间
 	Name       string `json:"name" gorm:"type:varchar(20);not null;unique"` 													// 用户名称

@@ -114,6 +114,7 @@ export default {
   data() {
     return {
       totalNum: 0,
+      curParams: "",
       loading: true,
       tableData: [],
       createdAt: [],
@@ -184,6 +185,14 @@ export default {
           type: "success",
         },
         {
+          label: "切换(前)",
+          type: "warning",
+        },
+        {
+          label: "切换(后)",
+          type: "success",
+        },
+        {
           label: "创建(版本)",
           type: "primary",
         },
@@ -233,6 +242,10 @@ export default {
     formatTime,
     dateFullFormatTime,
     getTableData(params) {
+      if (params !== this.curParams) {
+        this.searchList[4].value = 1;
+        this.curParams = params;
+      }
       const start = this.createdAt ? this.createdAt[0] : "";
       const end = this.createdAt ? this.createdAt[1] : "";
       const query = params ? `?${params}` : "";

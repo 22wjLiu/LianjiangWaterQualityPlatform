@@ -18,7 +18,7 @@ import (
 
 
 // @title    Users
-// @description   查询其它用户
+// @description   查询用户
 // @param    ctx *gin.Context       接收一个上下文
 // @return   void
 func Users(ctx *gin.Context) {
@@ -88,6 +88,7 @@ func Users(ctx *gin.Context) {
 	var users []dto.UserDto
 
 	result := db.
+		Select("id, created_at, updated_at, name, email, level").
 		Limit(pageSize).
 		Offset(offset).
 		Find(&users)

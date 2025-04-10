@@ -6,7 +6,7 @@ package model
 type DataHistory struct {
 	Id        	uint 	 `json:"id" gorm:"type:uint;not null"`      						// ID
 	UserId      uint   `json:"user_id" gorm:"type:uint;not null"`             // 用户Id
-	CreatedAt   Time   `json:"created_at" gorm:"type:timestamp;not null"`     // 操作时间
+	CreatedAt 	Time   `json:"created_at" gorm:"type:datetime;autoCreateTime"`// 创建时间
 	StartTime   string `json:"start_time" gorm:"type:varchar(50);not null"`   // 起始时间
 	EndTime     string `json:"end_time" gorm:"type:varchar(50);not null"`     // 终止时间
 	StationName string `json:"station_name" gorm:"type:varchar(50);not null"` // 站名

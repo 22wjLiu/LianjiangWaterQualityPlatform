@@ -83,7 +83,7 @@
           <el-button
             type="primary"
             size="small"
-            @click="handleUpdate(scope.row.id)"
+            @click="handleEdit(scope.row.id, scope.row.version_name)"
             >编辑</el-button
           >
           <el-button
@@ -140,9 +140,172 @@
           </el-select>
         </el-form-item>
       </el-form>
-      <div slot="footer" class="dialog-footer">
+      <div slot="footer">
         <el-button @click="createFormVisible = false"> 取消 </el-button>
         <el-button type="primary" @click="createData()"> 确认 </el-button>
+      </div>
+    </el-dialog>
+
+    <el-dialog
+      :title="`映射版本——${editVersionName}`"
+      class="edit-dialog"
+      :visible.sync="editFormVisible"
+      center
+    >
+      <div class="edit-table-container">
+        <div class="edit-searcher-container">
+          <el-select
+            placeholder="请选择映射表类型"
+            v-model="infosSearchList[0].value"
+            clearable
+          >
+            <el-option
+              v-for="item in tableOptions"
+              :key="item.value"
+              :label="item.value"
+              :value="item.value"
+            >
+            </el-option>
+          </el-select>
+          <el-input
+            placeholder="请输入主键"
+            v-model="infosSearchList[1].value"
+            clearable
+          >
+          </el-input>
+          <el-input
+            placeholder="请输入值"
+            v-model="infosSearchList[2].value"
+            clearable
+          >
+          </el-input>
+          <el-button
+            type="primary"
+            icon="el-icon-search"
+            @click="handleInfosSearch"
+          >
+            搜索
+          </el-button>
+          <el-button type="success" @click="handleCreateMap()"> 新建映射 </el-button>
+          <el-button type="danger" @click="handleEditDelete()">
+            批量删除
+          </el-button>
+        </div>
+        <el-table
+          :data="editTableData"
+          v-loading="editLoading"
+          style="width: 100%;"
+          border
+          @selection-change="handleEditSelectionChange"
+        >
+          <el-table-column type="selection" align="center" width="55">
+          </el-table-column>
+          <el-table-column
+            prop="table"
+            label="映射类型"
+            align="center"
+          >
+          </el-table-column>
+          <el-table-column
+            prop="key"
+            label="主键"
+            align="center"
+          >
+          </el-table-column>
+          <el-table-column
+            prop="value"
+            label="值"
+            align="center"
+          >
+          </el-table-column>
+          <el-table-column label="操作" align="center" width="180">
+        <template slot-scope="scope">
+          <el-button
+            type="primary"
+            size="small"
+            @click="handleEditUpdate(scope.row)"
+            >编辑</el-button
+          >
+          <el-button
+            type="danger"
+            size="small"
+            @click="handleEditDelete(scope.row.id)"
+            >删除</el-button
+          >
+        </template>
+      </el-table-column>
+        </el-table>
+        <div class="edit-page-container">
+          <el-pagination
+            @size-change="handleEditSizeChange"
+            @current-change="handleEditCurrentChange"
+            :current-page="infosSearchList[3].value"
+            :page-sizes="[10, 20, 30, 40]"
+            :page-size="infosSearchList[4].value"
+            layout="total, sizes, prev, pager, next, jumper"
+            :total="editTotalNum"
+          >
+          </el-pagination>
+        </div>
+      </div>
+      <div slot="footer">
+        <el-button @click="editFormVisible = false"> 取消编辑 </el-button>
+        <el-button type="primary" @click="updateData()"> 保存编辑 </el-button>
+      </div>
+    </el-dialog>
+
+    <el-dialog :title="curMapDialogTitle" :visible.sync="mapFormVisible" center>
+      <el-form
+        ref="createMapForm"
+        :rules="curEditRule"
+        :model="editTemp"
+        label-position="left"
+        label-width="85px"
+      >
+        <el-form-item label="映射类型" prop="table">
+          <el-select
+            placeholder="是否复制当前使用中版本"
+            v-model="editTemp.table"
+            clearable
+            @change="handleTableChange"
+          >
+          <el-option
+              v-for="item in tableOptions"
+              :key="item.value"
+              :label="item.value"
+              :value="item.value"
+            >
+            </el-option>
+          </el-select>
+        </el-form-item>
+        <el-form-item label="主键" prop="key">
+          <el-input
+            v-model="editTemp.key"
+            autocomplete="off"
+            placeholder="请设置主键"
+          >
+          </el-input>
+        </el-form-item>
+        <el-form-item label="值" prop="value">
+          <el-input
+            v-model="editTemp.value"
+            autocomplete="off"
+            placeholder="请设置主键"
+          >
+          </el-input>
+        </el-form-item>
+        <el-form-item v-if="isMutiLineMap" label="公式" prop="value">
+          <el-input
+            v-model="editTemp.formula"
+            autocomplete="off"
+            placeholder="请设置公式"
+          >
+          </el-input>
+        </el-form-item>
+      </el-form>
+      <div slot="footer">
+        <el-button @click="mapFormVisible = false"> 取消 </el-button>
+        <el-button type="primary" @click="createMap()"> 确认 </el-button>
       </div>
     </el-dialog>
   </div>
@@ -150,21 +313,47 @@
 
 <script>
 import { formatTime, dateFullFormatTime } from "@/util/timeFormater.js";
-import { getMapVersions, getMapTables, createMapVersion, deleteMapVersion } from "@/api/map.js";
+import {
+  getMapVersions,
+  getMapTables,
+  getMapInfos,
+  createMap,
+  createMapVersion,
+  deleteMapVersion,
+  changeMapVersion,
+} from "@/api/map.js";
 export default {
   data() {
     return {
       totalNum: 0,
+      editTotalNum: 0,
+      curParams: "",
+      curEditParams: "",
+      curMapDialogTitle: "",
       loading: true,
+      editLoading: true,
       createFormVisible: false,
       editFormVisible: false,
+      mapFormVisible: false,
+      isMutiLineMap: false,
+      curEditRule: {},
+      editVersionName: "无",
+      editId: "",
       createdAt: [],
       tableData: [],
+      editTableData: [],
       selection: [],
+      editSelection: [],
       tableOptions: [],
       createTemp: {
         version_name: "",
         isCopy: "",
+      },
+      editTemp: {
+       table: "",
+       key: "",
+       value: "",
+       formula: "", 
       },
       origin: {},
       searchList: [
@@ -183,6 +372,28 @@ export default {
         {
           label: "pageSize",
           value: 25,
+        },
+      ],
+      infosSearchList: [
+        {
+          label: "table",
+          value: "",
+        },
+        {
+          label: "key",
+          value: "",
+        },
+        {
+          label: "value",
+          value: "",
+        },
+        {
+          label: "page",
+          value: 1,
+        },
+        {
+          label: "pageSize",
+          value: 10,
         },
       ],
       statusOptions: [
@@ -235,6 +446,33 @@ export default {
           { required: true, message: "该选项不能为空", trigger: "change" },
         ],
       },
+      editRule1: {
+        table: [
+          { required: true, message: "该选项不能为空", trigger: "blur" },
+          { required: true, message: "该选项不能为空", trigger: "change" },
+        ],
+        key: [
+          { required: true, message: "主键不能为空", trigger: "blur" },
+        ],
+        value: [
+          { required: true, message: "值不能为空", trigger: "blur" },
+        ],
+      },
+      editRule2: {
+        table: [
+          { required: true, message: "该选项不能为空", trigger: "blur" },
+          { required: true, message: "该选项不能为空", trigger: "change" },
+        ],
+        key: [
+          { required: true, message: "主键不能为空", trigger: "blur" },
+        ],
+        value: [
+          { required: true, message: "值不能为空", trigger: "blur" },
+        ],
+        formula: [
+          { required: true, message: "公式不能为空", trigger: "blur" },
+        ],
+      },
     };
   },
   methods: {
@@ -243,19 +481,17 @@ export default {
     getMapTables() {
       getMapTables()
         .then((res) => {
-          let temp;
-          res.data.tables.forEach((item) => {
-            temp = {
-              value: item,
-            };
-            this.tableOptions.push(temp);
-          });
+          this.tableOptions = res.data.tables;
         })
         .catch((err) => {
           this.$message.error(err.message);
         });
     },
     getTableData(params) {
+      if (params !== this.curParams) {
+        this.searchList[2].value = 1;
+        this.curParams = params;
+      }
       const start = this.createdAt ? this.createdAt[0] : "";
       const end = this.createdAt ? this.createdAt[1] : "";
       const query = params ? `?${params}` : "";
@@ -272,6 +508,7 @@ export default {
         })
         .catch((err) => {
           this.$message.error(err.message);
+          console.log(err);
         });
     },
     handleSearch() {
@@ -285,12 +522,47 @@ export default {
       params = params.slice(0, last);
       this.getTableData(params);
     },
+    handleInfosSearch() {
+      let params = "";
+      this.infosSearchList.forEach((item) => {
+        if (item.value !== "") {
+          params += item.label + "=" + item.value + "&";
+        }
+      });
+      const last = params.lastIndexOf("&");
+      params = params.slice(0, last);
+      this.getEditTableData(params);
+    },
+    getEditTableData(params){
+      if (params !== this.curEditParams) {
+        this.infosSearchList[3].value = 1;
+        this.curEditParams = params;
+      }
+      const query = params ? `?${params}` : "";
+      this.editLoading = true;
+      getMapInfos(this.editId, query)
+        .then((res) => {
+          if (res.code == 200) {
+            this.editTableData = res.data.mapInfos;
+            this.editTotalNum = res.data.total;
+            this.editLoading = false;
+          }
+        })
+        .catch((err) => {
+          this.$message.error(err.message);
+          console.log(err);
+        });
+    },
     handleDelete(id) {
-      this.$confirm("此操作将永久删除选中映射版本及其相关数据表, 是否继续?", "提示", {
-        confirmButtonText: "确定",
-        cancelButtonText: "取消",
-        type: "warning",
-      }).then(() => {
+      this.$confirm(
+        "此操作将永久删除选中映射版本及其相关数据表, 是否继续?",
+        "提示",
+        {
+          confirmButtonText: "确定",
+          cancelButtonText: "取消",
+          type: "warning",
+        }
+      ).then(() => {
         this.deleteData(id);
       });
     },
@@ -316,19 +588,56 @@ export default {
           this.$message.error(err.message);
         });
     },
+    handleEditDelete(id){
+      this.$confirm(
+        "此操作将永久删除选中映射并删除数据表对应映射, 是否继续?",
+        "提示",
+        {
+          confirmButtonText: "确定",
+          cancelButtonText: "取消",
+          type: "warning",
+        }
+      ).then(() => {
+        this.editDeleteData(id);
+      });
+    },
+    editDeleteData(id){
+
+    },
     handleSelectionChange(selected) {
       this.selection = selected;
+    },
+    handleEditSelectionChange(selected) {
+      this.editSelection = selected;
     },
     handleSizeChange(val) {
       this.searchList[3].value = val;
       this.handleSearch();
     },
+    handleEditSizeChange(val) {
+      this.infosSearchList[4].value = val;
+      this.handleInfosSearch();
+    },
     handleCurrentChange(val) {
       this.searchList[2].value = val;
       this.handleSearch();
     },
-    handleUpdate(id) {
-      console.log(id);
+    handleEditCurrentChange(val) {
+      this.infosSearchList[3].value = val;
+      this.handleInfosSearch();
+    },
+    handleEdit(id, name) {
+      this.editVersionName = name;
+      this.editFormVisible = true;
+      this.editId = id;
+      this.handleInfosSearch();
+    },
+    handleEditUpdate(){
+      this.curMapDialogTitle = "编辑映射表"
+      this.mapFormVisible = true;
+      this.$nextTick(() => {
+        this.$refs.createForm.clearValidate();
+      });
     },
     updateData() {
       const body = Object.assign({}, this.temp);
@@ -347,6 +656,46 @@ export default {
         .catch((err) => {
           this.$message.error(err.message);
         });
+    },
+    handleTableChange(val){
+      if (val === "行字段一对多映射") {
+        this.isMutiLineMap = true;
+        this.curEditRule = this.editRule2;
+      } else {
+        this.isMutiLineMap = false;
+        this.curEditRule = this.editRule1;
+      }
+    },
+    handleCreateMap(){
+      this.curMapDialogTitle = "创建映射表";
+      this.mapFormVisible = true;
+      this.editTemp = {};
+      this.$nextTick(() => {
+        this.$refs.createMapForm.clearValidate();
+      });
+    },
+    createMap() {
+      this.$refs.createMapForm.validate((valid) => {
+        if (!valid) return;
+        this.$confirm("确认创建吗?", "提示", {
+          confirmButtonText: "确定",
+          cancelButtonText: "取消",
+          type: "warning",
+        }).then(() => {
+          createMap(this.editId, this.editTemp)
+            .then((res) => {
+              if (res.code === 200) {
+                this.$message.success(res.msg);
+                this.mapFormVisible = false;
+                this.handleInfosSearch();
+              }
+            })
+            .catch((err) => {
+              this.$message.error(err.message);
+              console.log(err.message);
+            });
+        });
+      });
     },
     handleCreate() {
       this.createTemp = {};
@@ -382,7 +731,24 @@ export default {
       });
     },
     handleChange(id) {
-      console.log(id);
+      this.$confirm("确认要切换当前映射版本吗?", "提示", {
+        confirmButtonText: "确定",
+        cancelButtonText: "取消",
+        type: "warning",
+      }).then(() => {
+        const params = id ? `?id=${id}` : "";
+        changeMapVersion(params)
+          .then((res) => {
+            if (res.code === 200) {
+              this.handleSearch();
+              this.$message.success(res.msg);
+            }
+          })
+          .catch((err) => {
+            this.$message.error(err.message);
+            console.log(err.message);
+          });
+      });
     },
   },
   created() {
@@ -449,6 +815,53 @@ export default {
 
   .el-select {
     width: 100%;
+  }
+}
+
+.body .edit-dialog :deep(.el-dialog) {
+  max-width: 1300px;
+  min-width: 890px;
+
+  .edit-table-container {
+    width: 100%;
+  }
+
+  .el-table {
+    width: 100% !important;
+  }
+
+  .edit-searcher-container {
+    .el-input {
+      margin-bottom: 5px;
+      margin-left: 10px;
+      width: 150px;
+    }
+
+    :nth-child(1) {
+      margin-left: 0px;
+    }
+
+    .el-button {
+      margin-bottom: 5px;
+      margin-left: 10px;
+    }
+
+    .el-select {
+      margin-bottom: 5px;
+      width: 200px;
+
+      .el-input {
+        width: 100%;
+      }
+    }
+  }
+
+  .edit-page-container {
+    display: flex;
+    margin-top: 10px;
+    .el-pagination {
+      display: inline-block;
+    }
   }
 }
 </style>
