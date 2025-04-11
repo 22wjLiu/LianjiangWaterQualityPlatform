@@ -33,10 +33,10 @@
         clearable
       >
         <el-option
-          v-for="item in opOptions"
-          :key="item.value"
+          v-for="item in options"
+          :key="item.label"
           :label="item.label"
-          :value="item.value"
+          :value="item.label"
         >
         </el-option>
       </el-select>
@@ -172,20 +172,6 @@ export default {
         {
           value: "月度制",
         },
-      ],
-      opOptions: [
-        {
-          value: "创建",
-        },
-        {
-          value: "删除",
-        },
-        {
-          value: "更新(前)",
-        },
-        {
-          value: "更新(后)",
-        }
       ],
       options: [
         {

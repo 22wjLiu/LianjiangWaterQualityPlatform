@@ -45,6 +45,28 @@ export const createMap = (id, body) => {
   });
 };
 
+export const deleteMap = (id, ids) => {
+  let path = "/deleteMap";
+
+  path += id ? `/${id}` : "/null";
+
+  return request.delete(path, {
+    data: { ids },
+    needToken: true,
+  });
+};
+
+export const updateMap = (id, curMapId, body) => {
+  let path = "/updateMap";
+
+  path += id ? `/${id}` : "/null";
+  path += curMapId ? `/${curMapId}` : "/null";
+
+  return request.put(path, body, {
+    needToken: true,
+  });
+};
+
 export const deleteMapVersion = (ids) => {
   return request.delete("/mapVersion", {
     data: { ids },

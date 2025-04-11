@@ -186,7 +186,9 @@
           >
             搜索
           </el-button>
-          <el-button type="success" @click="handleCreateMap()"> 新建映射 </el-button>
+          <el-button type="success" @click="handleCreateMap()">
+            新建映射
+          </el-button>
           <el-button type="danger" @click="handleEditDelete()">
             批量删除
           </el-button>
@@ -194,46 +196,34 @@
         <el-table
           :data="editTableData"
           v-loading="editLoading"
-          style="width: 100%;"
+          style="width: 100%"
           border
           @selection-change="handleEditSelectionChange"
         >
           <el-table-column type="selection" align="center" width="55">
           </el-table-column>
-          <el-table-column
-            prop="table"
-            label="映射类型"
-            align="center"
-          >
+          <el-table-column prop="table" label="映射类型" align="center">
           </el-table-column>
-          <el-table-column
-            prop="key"
-            label="主键"
-            align="center"
-          >
+          <el-table-column prop="key" label="主键" align="center">
           </el-table-column>
-          <el-table-column
-            prop="value"
-            label="值"
-            align="center"
-          >
+          <el-table-column prop="value" label="值" align="center">
           </el-table-column>
           <el-table-column label="操作" align="center" width="180">
-        <template slot-scope="scope">
-          <el-button
-            type="primary"
-            size="small"
-            @click="handleEditUpdate(scope.row)"
-            >编辑</el-button
-          >
-          <el-button
-            type="danger"
-            size="small"
-            @click="handleEditDelete(scope.row.id)"
-            >删除</el-button
-          >
-        </template>
-      </el-table-column>
+            <template slot-scope="scope">
+              <el-button
+                type="primary"
+                size="small"
+                @click="handleEditUpdate(scope.row)"
+                >编辑</el-button
+              >
+              <el-button
+                type="danger"
+                size="small"
+                @click="handleEditDelete(scope.row.id)"
+                >删除</el-button
+              >
+            </template>
+          </el-table-column>
         </el-table>
         <div class="edit-page-container">
           <el-pagination
@@ -248,13 +238,9 @@
           </el-pagination>
         </div>
       </div>
-      <div slot="footer">
-        <el-button @click="editFormVisible = false"> 取消编辑 </el-button>
-        <el-button type="primary" @click="updateData()"> 保存编辑 </el-button>
-      </div>
     </el-dialog>
 
-    <el-dialog :title="curMapDialogTitle" :visible.sync="mapFormVisible" center>
+    <el-dialog title="创建映射表" :visible.sync="mapFormVisible" center>
       <el-form
         ref="createMapForm"
         :rules="curEditRule"
@@ -269,8 +255,8 @@
             clearable
             @change="handleTableChange"
           >
-          <el-option
-              v-for="item in tableOptions"
+            <el-option
+              v-for="item in createMapOptions"
               :key="item.value"
               :label="item.value"
               :value="item.value"
@@ -290,7 +276,7 @@
           <el-input
             v-model="editTemp.value"
             autocomplete="off"
-            placeholder="请设置主键"
+            placeholder="请设置值"
           >
           </el-input>
         </el-form-item>
@@ -308,6 +294,37 @@
         <el-button type="primary" @click="createMap()"> 确认 </el-button>
       </div>
     </el-dialog>
+
+    <el-dialog title="更新映射表" :visible.sync="updateMapFormVisible" center>
+      <el-form
+        ref="updateMapForm"
+        :rules="curUpdateRule"
+        :model="updateTemp"
+        label-position="left"
+        label-width="85px"
+      >
+        <el-form-item v-if="isNotFormula" label="主键" prop="key">
+          <el-input
+            v-model="updateTemp.key"
+            autocomplete="off"
+            placeholder="请设置主键"
+          >
+          </el-input>
+        </el-form-item>
+        <el-form-item label="值" prop="value">
+          <el-input
+            v-model="updateTemp.value"
+            autocomplete="off"
+            placeholder="请设置值"
+          >
+          </el-input>
+        </el-form-item>
+      </el-form>
+      <div slot="footer">
+        <el-button @click="updateMapFormVisible = false"> 取消 </el-button>
+        <el-button type="primary" @click="updateData()"> 确认 </el-button>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -318,6 +335,8 @@ import {
   getMapTables,
   getMapInfos,
   createMap,
+  deleteMap,
+  updateMap,
   createMapVersion,
   deleteMapVersion,
   changeMapVersion,
@@ -329,14 +348,16 @@ export default {
       editTotalNum: 0,
       curParams: "",
       curEditParams: "",
-      curMapDialogTitle: "",
       loading: true,
       editLoading: true,
       createFormVisible: false,
       editFormVisible: false,
       mapFormVisible: false,
+      updateMapFormVisible: false,
       isMutiLineMap: false,
+      isNotFormula: true,
       curEditRule: {},
+      curUpdateRule: {},
       editVersionName: "无",
       editId: "",
       createdAt: [],
@@ -345,15 +366,20 @@ export default {
       selection: [],
       editSelection: [],
       tableOptions: [],
+      createMapOptions: [],
       createTemp: {
         version_name: "",
         isCopy: "",
       },
       editTemp: {
-       table: "",
-       key: "",
-       value: "",
-       formula: "", 
+        table: "",
+        key: "",
+        value: "",
+        formula: "",
+      },
+      updateTemp: {
+        key: "",
+        value: "",
       },
       origin: {},
       searchList: [
@@ -446,11 +472,7 @@ export default {
           { required: true, message: "该选项不能为空", trigger: "change" },
         ],
       },
-      editRule1: {
-        table: [
-          { required: true, message: "该选项不能为空", trigger: "blur" },
-          { required: true, message: "该选项不能为空", trigger: "change" },
-        ],
+      updateRules1: {
         key: [
           { required: true, message: "主键不能为空", trigger: "blur" },
         ],
@@ -458,20 +480,27 @@ export default {
           { required: true, message: "值不能为空", trigger: "blur" },
         ],
       },
+      updateRules2: {
+        value: [
+          { required: true, message: "值不能为空", trigger: "blur" },
+        ],
+      },
+      editRule1: {
+        table: [
+          { required: true, message: "该选项不能为空", trigger: "blur" },
+          { required: true, message: "该选项不能为空", trigger: "change" },
+        ],
+        key: [{ required: true, message: "主键不能为空", trigger: "blur" }],
+        value: [{ required: true, message: "值不能为空", trigger: "blur" }],
+      },
       editRule2: {
         table: [
           { required: true, message: "该选项不能为空", trigger: "blur" },
           { required: true, message: "该选项不能为空", trigger: "change" },
         ],
-        key: [
-          { required: true, message: "主键不能为空", trigger: "blur" },
-        ],
-        value: [
-          { required: true, message: "值不能为空", trigger: "blur" },
-        ],
-        formula: [
-          { required: true, message: "公式不能为空", trigger: "blur" },
-        ],
+        key: [{ required: true, message: "主键不能为空", trigger: "blur" }],
+        value: [{ required: true, message: "值不能为空", trigger: "blur" }],
+        formula: [{ required: true, message: "公式不能为空", trigger: "blur" }],
       },
     };
   },
@@ -482,6 +511,7 @@ export default {
       getMapTables()
         .then((res) => {
           this.tableOptions = res.data.tables;
+          this.createMapOptions = this.tableOptions.filter(item => item.value !== "行字段一对多公式映射");
         })
         .catch((err) => {
           this.$message.error(err.message);
@@ -533,7 +563,7 @@ export default {
       params = params.slice(0, last);
       this.getEditTableData(params);
     },
-    getEditTableData(params){
+    getEditTableData(params) {
       if (params !== this.curEditParams) {
         this.infosSearchList[3].value = 1;
         this.curEditParams = params;
@@ -588,7 +618,7 @@ export default {
           this.$message.error(err.message);
         });
     },
-    handleEditDelete(id){
+    handleEditDelete(id) {
       this.$confirm(
         "此操作将永久删除选中映射并删除数据表对应映射, 是否继续?",
         "提示",
@@ -601,8 +631,46 @@ export default {
         this.editDeleteData(id);
       });
     },
-    editDeleteData(id){
-
+    editDeleteData(id) {
+      let ids = [];
+      if (id) {
+        ids.push(parseInt(id));
+      } else {
+        this.selection.forEach((item) => {
+          ids.push(parseInt(item.id));
+        });
+      }
+      ids.forEach((item) => {
+        if (item.table === "行字段一对多映射") {
+          const mathed = this.editTableData.find(
+            (data) =>
+              data.table === "行字段一对多公式映射" && data.key === item.key
+          );
+          if (mathed) {
+            ids.push(parseInt(mathed.id));
+          }
+        } else if (item.table === "行字段一对多公式映射") {
+          const mathed = this.editTableData.find(
+            (data) => data.table === "行字段一对多映射" && data.key === item.key
+          );
+          if (mathed) {
+            ids.push(parseInt(mathed.id));
+          }
+        }
+      });
+      ids = [...new Set(ids)];
+      deleteMap(this.editId, ids)
+        .then((res) => {
+          if (res.code == 200) {
+            this.handleInfosSearch();
+            this.$message.success(res.msg);
+          } else {
+            this.$message.warning(res.msg);
+          }
+        })
+        .catch((err) => {
+          this.$message.error(err.message);
+        });
     },
     handleSelectionChange(selected) {
       this.selection = selected;
@@ -630,25 +698,58 @@ export default {
       this.editVersionName = name;
       this.editFormVisible = true;
       this.editId = id;
+      this.infosSearchList = [
+        {
+          label: "table",
+          value: "",
+        },
+        {
+          label: "key",
+          value: "",
+        },
+        {
+          label: "value",
+          value: "",
+        },
+        {
+          label: "page",
+          value: 1,
+        },
+        {
+          label: "pageSize",
+          value: 10,
+        },
+      ],
       this.handleInfosSearch();
     },
-    handleEditUpdate(){
-      this.curMapDialogTitle = "编辑映射表"
-      this.mapFormVisible = true;
+    handleEditUpdate(row) {
+      if (row.table === "行字段一对多公式映射") {
+        this.isNotFormula = false;
+        this.curUpdateRule = this.updateRules2;
+      } else {
+        this.isNotFormula = true;
+        this.curUpdateRule = this.updateRules1;
+      }
+      this.updateTemp = {
+        table: row.table,
+        key: row.key,
+        value: row.value,
+      };
+      this.origin.id = row.id;
+      this.updateMapFormVisible = true;
       this.$nextTick(() => {
-        this.$refs.createForm.clearValidate();
+        this.$refs.updateMapForm.clearValidate();
       });
     },
     updateData() {
-      const body = Object.assign({}, this.temp);
-      if (this.temp.name === this.origin.name) body.name = "";
-      if (this.temp.level === this.origin.level) body.level = 0;
-      updateUser(this.origin.id, body)
+      this.$refs.updateMapForm.validate((valid) => {
+        if (!valid) return;
+        updateMap(this.editId, this.origin.id, this.updateTemp)
         .then((res) => {
           if (res.code === 200) {
             this.$message.success(res.msg);
-            this.dialogFormVisible = false;
-            this.handleSearch();
+            this.updateMapFormVisible = false;
+            this.handleInfosSearch();
           } else {
             this.$message.warning(res.msg);
           }
@@ -656,8 +757,9 @@ export default {
         .catch((err) => {
           this.$message.error(err.message);
         });
+      });
     },
-    handleTableChange(val){
+    handleTableChange(val) {
       if (val === "行字段一对多映射") {
         this.isMutiLineMap = true;
         this.curEditRule = this.editRule2;
@@ -666,8 +768,7 @@ export default {
         this.curEditRule = this.editRule1;
       }
     },
-    handleCreateMap(){
-      this.curMapDialogTitle = "创建映射表";
+    handleCreateMap() {
       this.mapFormVisible = true;
       this.editTemp = {};
       this.$nextTick(() => {

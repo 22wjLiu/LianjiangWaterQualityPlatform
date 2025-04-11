@@ -20,3 +20,10 @@ type CreateMapDetail struct {
 	Value string `json:"value`
 	Formula string `json:"formula"`
 }
+
+// UpdateMapDetail	定义了更新映射详情类型
+type UpdateMapDetail struct {
+	Table string `json:table`
+	Key		string `json:value`
+	Value string `json:"value`
+}

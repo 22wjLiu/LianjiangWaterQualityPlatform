@@ -4,7 +4,6 @@ package controller
 
 import (
 	"errors"
-	"fmt"
 	"lianjiang/common"
 	"lianjiang/model"
 	"lianjiang/response"
@@ -424,11 +423,35 @@ func DeleteMapVersion(ctx *gin.Context) {
 
 	db := common.GetDB()
 
+	var curMapVer model.MapVersion
+
+	err := db.
+		Model(&model.MapVersion{}).
+		Where("active = 1").
+		First(&curMapVer).
+		Error; 
+
+	if errors.Is(err, gorm.ErrRecordNotFound){
+		response.Fail(ctx, nil, "严重错误：使用中的映射版本不存在")
+		return
+	} else if err != nil {
+		response.Fail(ctx, nil, "查询使用中映射版本失败")
+		return
+	}
+
+	for _, i := range resq.Ids {
+		if curMapVer.Id == i {
+			response.Fail(ctx, nil, "不能删除使用中的映射版本")
+			return
+		}
+	}
+
 	// 查找相应表信息
 	var tableInfos []model.DataTableInfo
 
 	if err := db.
 		Model(&model.DataTableInfo{}).
+		Select("DISTINCT data_table_name").
 		Where("map_ver_id in ?", resq.Ids).
 		Find(&tableInfos).
 		Error; err != nil {
@@ -728,15 +751,25 @@ func CreateMap(ctx *gin.Context) {
 	}
 
 	var tableInfos []model.DataTableInfo
+	var mapMutiLineDetails []model.MapVersionDetail
 
-	if isMutiLineMap || data.Table == "列字段映射" {
+	if data.Table == "列字段映射" {
 		if err := db.
-		Select("data_table_name").
+		Select("DISTINCT data_table_name").
 		Model(&model.DataTableInfo{}).
 		Where("map_ver_id = ?", id).
 		Find(&tableInfos).
 		Error; err != nil {
 			response.Fail(ctx, nil, "查询编辑的映射数据失败")
+			return
+		}
+
+		if err := db.
+		Model(&model.MapVersionDetail{}).
+		Where("ver_id = ? and `table` = ?", id, "行字段一对多映射").
+		Find(&mapMutiLineDetails).
+		Error; err != nil {
+			response.Fail(ctx, nil, "查询编辑的映射信息失败")
 			return
 		}
 	}
@@ -747,7 +780,7 @@ func CreateMap(ctx *gin.Context) {
 		if err := db.
 		Select("value").
 		Model(&model.MapVersionDetail{}).
-		Where("ver_id = ?", id).
+		Where("ver_id = ? and `table` = ?", id, "列字段映射").
 		Find(&mapDetails).
 		Error; err != nil {
 			response.Fail(ctx, nil, "查询编辑的映射数据失败")
@@ -779,44 +812,53 @@ func CreateMap(ctx *gin.Context) {
 			response.Fail(ctx, nil, "创建失败")
 			return
 		}
+
+		rowAllTime := []string{"created_at"}
+		var rowAllStr []string
+
+		if isActiveVersion {
+			for _, key := range util.PointMap.Keys() {
+				v,_ := util.PointMap.Get(key)
+				rowAllStr = append(rowAllStr, v.(string))
+			}
+		} else {
+			for _, detail := range mapDetails {
+				rowAllStr = append(rowAllStr, detail.Value)
+			}
+		}
+	
+		rowAllStr = append(rowAllStr, "rowall_formula")
+
+		sql := util.BuildCreateTableSQL_Str_T_FId(data.Value, rowAllTime, rowAllStr, "table_id", "data_table_infos")
+		if err := tx.
+			Exec(sql).
+			Error; err != nil {
+			tx.Rollback()
+			response.Fail(ctx, nil, "创建失败")
+			return
+		}
 	}
 
 	if len(tableInfos) > 0 {
-		if isMutiLineMap {
-			rowAllTime := []string{"created_at"}
-			var rowAllStr []string
-
-			if isActiveVersion {
-				for _, key := range util.PointMap.Keys() {
-					v,_ := util.PointMap.Get(key)
-					rowAllStr = append(rowAllStr, v.(string))
-				}
-			} else {
-				for _, detail := range mapDetails {
-					rowAllStr = append(rowAllStr, detail.Value)
-				}
-			}
-		
-			rowAllStr = append(rowAllStr, "rowall_formula")
-
-			sql := util.BuildCreateTableSQL_Str_T_FId(data.Value, rowAllTime, rowAllStr, "table_id", "data_table_infos")
+		for _, info := range tableInfos {
+			sql := "ALTER TABLE `" + info.DataTableName + "` ADD `" + data.Value + "` VARCHAR(30) DEFAULT '' NOT NULL"
 			if err := tx.
 				Exec(sql).
 				Error; err != nil {
-				tx.Rollback()
-				response.Fail(ctx, nil, "创建失败")
-				return
+					tx.Rollback()
+					response.Fail(ctx, nil, "创建失败")
+					return
 			}
-		} else {
-			for _, info := range tableInfos {
-				sql := "ALTER TABLE `" + info.DataTableName + "` ADD " + data.Key + " VARCHAR(30) DEFAULT '' NOT NULL"
-				if err := tx.
-					Exec(sql).
-					Error; err != nil {
-						tx.Rollback()
-						response.Fail(ctx, nil, "创建失败")
-						return
-				}
+		}
+
+		for _, item := range mapMutiLineDetails {
+			sql := "ALTER TABLE `" + item.Value + "_" + strconv.FormatUint(uint64(id), 10) + "` ADD `" + data.Value + "` VARCHAR(30) DEFAULT '' NOT NULL"
+			if err := tx.
+				Exec(sql).
+				Error; err != nil {
+					tx.Rollback()
+					response.Fail(ctx, nil, "创建失败")
+					return
 			}
 		}
 	}
@@ -853,6 +895,7 @@ func CreateMap(ctx *gin.Context) {
 		}
 	}
 
+	// 如果是使用中版本就修改内存中的数据
 	if isActiveVersion {
 		val, ok := util.MapMap[data.Table]
 		if !ok {
@@ -877,102 +920,530 @@ func CreateMap(ctx *gin.Context) {
 	response.Success(ctx, nil, "创建成功")
 }
 
-// @title    CreateMapValue
-// @description   创建映射键值对
-// @param    ctx *gin.Context       接收一个上下文
-// @return   void
-func CreateMapValue(ctx *gin.Context) {
-	// TODO 获取登录用户
-	tuser, _ := ctx.Get("user")
-
-	user := tuser.(model.User)
-
-	// TODO 安全等级在二级以下的用户不能操作映射表
-	if user.Level < 4 {
-		response.Fail(ctx, nil, "权限不足")
-		return
-	}
-
-	// TODO 获取path中的id
-	id := ctx.Params.ByName("id")
-
-	// TODO 获取path中的key
-	key := ctx.Params.ByName("key")
-
-	// TODO 取出value
-	value := ctx.DefaultQuery("value", "")
-
-	M, ok := util.MapMap[id]
-
-	if !ok {
-		response.Fail(ctx, nil, "不存在该映射表")
-		return
-	}
-
-	// TODO 设置值
-	M.Set(key, value)
-
-	// TODO 做历史记录
-	common.GetDB().Create(&model.MapHistory{
-		UserId: user.Id,
-		Table:  id,
-		Key:    key,
-		Value:  fmt.Sprint(value),
-		Option: "创建",
-	})
-
-	// TODO 返回所有value
-	response.Success(ctx, nil, "设置成功")
-}
-
-// @title    DeleteMapKey
+// @title    DeleteMap
 // @description   删除映射
 // @param    ctx *gin.Context       接收一个上下文
 // @return   void
-func DeleteMapKey(ctx *gin.Context) {
-	// TODO 获取登录用户
+func DeleteMap(ctx *gin.Context) {
+	// 获取登录用户
 	tuser, _ := ctx.Get("user")
 
 	user := tuser.(model.User)
-
-	// TODO 安全等级在二级以下的用户不能操作映射表
+	
+	// 安全等级在四级以下的用户不能查看历史操作记录
 	if user.Level < 4 {
 		response.Fail(ctx, nil, "权限不足")
 		return
 	}
 
-	// TODO 获取path中的id
-	id := ctx.Params.ByName("id")
+	// 获取版本ID
+	mapId := ctx.Params.ByName("id")
 
-	// TODO 获取path中的key
-	key := ctx.Params.ByName("key")
+	if mapId == "" || mapId == "null" {
+		response.Fail(ctx, nil, "参数错误")
+		return
+	}
+	
+	temp, err := strconv.ParseUint(mapId, 10, 32)
+	if err != nil {
+		response.Fail(ctx, nil, "参数错误")
+		return
+	}
+	id := uint(temp)
 
-	M, ok := util.MapMap[id]
-
-	if !ok {
-		response.Fail(ctx, nil, "不存在该映射表")
+	// 解析请求体
+	var resq dto.BatchDeleteId
+	if err := ctx.ShouldBindJSON(&resq); err != nil {
+		response.Fail(ctx, nil, "请求体参数解析错误")
 		return
 	}
 
-	value, ok := M.Get(key)
-
-	// TODO 检查键值是否存在
-	if !ok {
-		response.Fail(ctx, nil, "键值不存在")
+	if len(resq.Ids) <= 0 {
+		response.Fail(ctx, nil, "删除成功")
 		return
 	}
 
-	// TODO 做历史记录
-	common.GetDB().Create(&model.MapHistory{
-		UserId: user.Id,
-		Table:  id,
-		Key:    key,
-		Value:  fmt.Sprint(value),
-		Option: "删除",
-	})
+	// 获取数据库指针
+	db := common.GetDB()
 
-	// TODO 删除值
-	M.Remove(key)
+	// 获取当前映射版本信息
+	var curMapVer model.MapVersion
+
+	isActiveVersion := true
+
+	err = db.
+		Model(&model.MapVersion{}).
+		Where("id = ? and active = 1", id).
+		First(&curMapVer).
+		Error; 
+
+	if errors.Is(err, gorm.ErrRecordNotFound){
+		isActiveVersion = false
+	} else if err != nil {
+		response.Fail(ctx, nil, "查询编辑的映射版本失败")
+		return
+	}
+
+	if !isActiveVersion {
+		err = db.
+		Model(&model.MapVersion{}).
+		Where("id = ?", id).
+		First(&curMapVer).
+		Error; 
+
+		if errors.Is(err, gorm.ErrRecordNotFound){
+			response.Fail(ctx, nil, "严重错误：编辑的映射版本不存在")
+			return
+		} else if err != nil {
+			response.Fail(ctx, nil, "查询编辑的映射版本失败")
+			return
+		}
+	}
+
+	// 获取映射信息
+	var mapDetails []model.MapVersionDetail
+
+	if err := db.
+		Model(&model.MapVersionDetail{}).
+		Where("ver_id = ? and id in ?", id, resq.Ids).
+		Find(&mapDetails).
+		Error; err != nil {
+			response.Fail(ctx, nil, "查询映射信息错误")
+			return
+	}
+
+	if len(mapDetails) != len(resq.Ids) {
+		response.Fail(ctx, nil, "查询部分映射信息错误")
+		return
+	}
+
+	// 获取特殊映射数量
+	var allSingleColumnMapCount int64
+
+	if err := db.
+		Model(&model.MapVersionDetail{}).
+		Where("ver_id = ? and `table` = ?", id, "列字段映射").
+		Count(&allSingleColumnMapCount).
+		Error; err != nil {
+			response.Fail(ctx, nil, "查询映射信息错误")
+			return
+	}
+
+	// 筛选特殊映射类型
+	var singleColumnMaps []model.MapVersionDetail
+	var mutiLineMaps []model.MapVersionDetail
+	var remainMutiLineMaps []model.MapVersionDetail
+	var formulaMaps	[]model.MapVersionDetail
+
+	for _, detail := range mapDetails {
+		if detail.Table == "列字段映射" {
+			singleColumnMaps = append(singleColumnMaps, detail)
+		} else if detail.Table == "行字段一对多映射" {
+			mutiLineMaps = append(mutiLineMaps, detail)
+		} else if detail.Table == "行字段一对多公式映射" {
+			formulaMaps = append(formulaMaps, detail)
+		}
+	}
+
+	if allSingleColumnMapCount - int64(len(singleColumnMaps)) <= 0 {
+		response.Fail(ctx, nil, "需要至少保留一个列字段映射")
+		return
+	}
+
+	if len(mutiLineMaps) != len(formulaMaps) {
+		response.Fail(ctx, nil, "参数错误")
+		return
+	}
+
+	formulaMapKeys := make(map[string]struct{})
+	for _, j := range formulaMaps {
+		formulaMapKeys[j.Key] = struct{}{}
+	}
+	
+	for _, i := range mutiLineMaps {
+		if _, ok := formulaMapKeys[i.Key]; !ok {
+			response.Fail(ctx, nil, "参数错误")
+			return
+		}
+	}
+
+	// 获取当前版本所有一对多行字段映射
+	var allMutiLineMaps []model.MapVersionDetail
+
+	if len(mutiLineMaps) > 0 {
+		if err := db.
+		Model(&model.MapVersionDetail{}).
+		Where("ver_id = ? and `table` = ?", id, "行字段一对多映射").
+		Find(&allMutiLineMaps).
+		Error; err != nil {
+			response.Fail(ctx, nil, "查询映射信息错误")
+			return
+		}
+	
+		if len(allMutiLineMaps) - len(mutiLineMaps) < 0 {
+			response.Fail(ctx, nil, "参数错误")
+			return
+		}
+	
+		mutiLineMapKeys := make(map[string]struct{})
+		for _, j := range mutiLineMaps {
+			mutiLineMapKeys[j.Key] = struct{}{}
+		}
+	
+		for _, i := range allMutiLineMaps {
+			if _, ok := mutiLineMapKeys[i.Key]; !ok {
+				remainMutiLineMaps = append(remainMutiLineMaps, i)
+			}
+		}
+	}
+
+	// 查询数据表信息
+	var tableInfos []model.DataTableInfo
+
+	if err := db.
+		Select("DISTINCT data_table_name").
+		Model(&model.DataTableInfo{}).
+		Where("map_ver_id = ?", id).
+		Find(&tableInfos).
+		Error; err != nil {
+			response.Fail(ctx, nil, "查询数据表信息错误")
+			return
+	}
+
+	// 开启事务
+	tx := db.Begin()
+
+	if len(tableInfos) > 0 && len(singleColumnMaps) > 0 {
+		for _, info := range tableInfos {
+			sql := "ALTER TABLE " + info.DataTableName
+
+			for _, item := range singleColumnMaps {
+				sql = sql + " DROP COLUMN `" + item.Value + "`,"
+			}
+
+			sql = sql[:len(sql) - 1]
+
+			if err := tx.Exec(sql).Error; err != nil {
+					tx.Rollback()
+					response.Fail(ctx, nil, "删除失败")
+					return
+			}
+		}
+
+		if len(remainMutiLineMaps) > 0 {
+			for _, i := range remainMutiLineMaps {
+				sql := "ALTER TABLE " + i.Value + "_" + strconv.FormatUint(uint64(id), 10)
+
+				for _, item := range singleColumnMaps {
+					sql = sql + " DROP COLUMN `" + item.Value + "`,"
+				}
+
+				sql = sql[:len(sql) - 1]
+
+				if err := tx.Exec(sql).Error; err != nil {
+						tx.Rollback()
+						response.Fail(ctx, nil, "删除失败")
+						return
+				}
+			}
+		}
+	}
+
+	if len(mutiLineMaps) > 0 {
+		for _, item := range mutiLineMaps {
+			sql := "DROP TABLE IF EXISTS " + item.Value + "_" + strconv.FormatUint(uint64(id), 10)
+			if err := tx.Exec(sql).Error; err != nil {
+				tx.Rollback()
+				response.Fail(ctx, nil, "删除失败")
+				return
+			}
+		}
+	}
+
+	// 删除所选映射详情
+	if err := tx.Delete(&mapDetails).Error; err != nil {
+		tx.Rollback()
+		response.Fail(ctx, nil, "删除失败")
+		return
+	}
+
+	// 创建删除记录
+	for _, item := range mapDetails {
+		if err := tx.
+		Create(&model.MapHistory{
+			UserId: user.Id,
+			VerName: curMapVer.VersionName,
+			Table: item.Table,
+			Key: item.Key,
+			Value: item.Value,
+			Option: "删除",
+		}).
+		Error; err != nil {
+			tx.Rollback()
+			response.Fail(ctx, nil, "创建失败")
+			return
+		}
+	}
+
+	// 如果是使用中版本就修改内存中的数据
+	if isActiveVersion {
+		for _, item := range mapDetails {
+			val, ok := util.MapMap[item.Table]
+			if !ok {
+				tx.Rollback()
+				response.Fail(ctx, nil, "删除失败")
+				return
+			}
+	
+			val.Remove(item.Key)
+
+			if _, ok := val.Get(item.Key); ok {
+				tx.Rollback()
+				response.Fail(ctx, nil, "删除失败")
+				return
+			}
+		}
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		response.Fail(ctx, nil, "删除失败")
+		return
+	}
 
 	response.Success(ctx, nil, "删除成功")
+}
+
+// @title    UpdateMap
+// @description   更新映射
+// @param    ctx *gin.Context       接收一个上下文
+// @return   void
+func UpdateMap(ctx *gin.Context) {
+	// 获取登录用户
+	tuser, _ := ctx.Get("user")
+
+	user := tuser.(model.User)
+	
+	// 安全等级在四级以下的用户不能查询用户信息
+	if user.Level < 4 {
+		response.Fail(ctx, nil, "权限不足")
+		return
+	}
+
+	mapId := ctx.Params.ByName("id")
+	cmapId := ctx.Params.ByName("curMapId")
+
+	if mapId == "" || mapId == "null" || cmapId == "" || cmapId == "null" {
+		response.Fail(ctx, nil, "参数错误")
+		return
+	}
+	
+	temp, err := strconv.ParseUint(mapId, 10, 32)
+	if err != nil {
+		response.Fail(ctx, nil, "参数错误")
+		return
+	}
+	id := uint(temp)
+
+	temp, err = strconv.ParseUint(cmapId, 10, 32)
+	if err != nil {
+		response.Fail(ctx, nil, "参数错误")
+		return
+	}
+	curMapId := uint(temp)
+
+	var data dto.UpdateMapDetail
+	if err := ctx.ShouldBindJSON(&data); err != nil {
+		response.Fail(ctx, nil, "参数错误")
+		return
+	}
+
+	if data.Table == "" || data.Key == "" || data.Value == "" {
+		response.Fail(ctx, nil, "参数错误")
+		return
+	}
+
+	// 获取数据库指针
+	db := common.GetDB()
+
+	var curDetail model.MapVersionDetail
+
+	err = db.
+		Model(&model.MapVersionDetail{}).
+		Where("id = ?", curMapId).
+		First(&curDetail).
+		Error;
+
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		response.Fail(ctx, nil, "编辑的映射不存在")
+		return
+	} else if err != nil {
+		response.Fail(ctx, nil, "查询映射信息失败")
+		return
+	}
+
+	isValueChange := false
+
+	if curDetail.Value != data.Value {
+		isValueChange = true
+	}
+
+	var curMapVer model.MapVersion
+
+	isActiveVersion := true
+
+	err = db.
+		Model(&model.MapVersion{}).
+		Where("id = ? and active = 1", id).
+		First(&curMapVer).
+		Error; 
+
+	if errors.Is(err, gorm.ErrRecordNotFound){
+		isActiveVersion = false
+	} else if err != nil {
+		response.Fail(ctx, nil, "查询编辑的映射版本失败")
+		return
+	}
+
+	if !isActiveVersion {
+		err = db.
+		Model(&model.MapVersion{}).
+		Where("id = ?", id).
+		First(&curMapVer).
+		Error; 
+
+		if errors.Is(err, gorm.ErrRecordNotFound){
+			response.Fail(ctx, nil, "严重错误：编辑的映射版本不存在")
+			return
+		} else if err != nil {
+			response.Fail(ctx, nil, "查询编辑的映射版本失败")
+			return
+		}
+	}
+
+	var tableInfos []model.DataTableInfo
+	var mapDetails []model.MapVersionDetail
+
+	if isValueChange && data.Table == "列字段映射" {
+		if err := db.
+		Select("DISTINCT data_table_name").
+		Model(&model.DataTableInfo{}).
+		Where("map_ver_id = ?", id).
+		Find(&tableInfos).
+		Error; err != nil {
+			response.Fail(ctx, nil, "查询编辑的映射数据失败")
+			return
+		}
+
+		if err := db.
+		Model(&model.MapVersionDetail{}).
+		Where("ver_id = ? and `table` = ?", id, "行字段一对多映射").
+		Find(&mapDetails).
+		Error; err != nil {
+			response.Fail(ctx, nil, "查询编辑的映射信息失败")
+			return
+		}
+	}
+
+	// 开启事务
+	tx := db.Begin()
+
+	if isValueChange {
+		if data.Table == "列字段映射" {
+			for _, info := range tableInfos {
+				sql := "ALTER TABLE `" + info.DataTableName + "` CHANGE `" + curDetail.Value + "` `" +  data.Value
+				sql = sql + "` VARCHAR(30) DEFAULT '' NOT NULL"
+				if err := tx.
+					Exec(sql).
+					Error; err != nil {
+						tx.Rollback()
+						response.Fail(ctx, nil, "更新失败")
+						return
+				}
+			}
+
+			for _, detail := range mapDetails {
+				sql := "ALTER TABLE " + detail.Value + "_" + strconv.FormatUint(uint64(id), 10) + " CHANGE `" + curDetail.Value + "` `" +  data.Value
+				sql = sql + "` VARCHAR(30) DEFAULT '' NOT NULL"
+				if err := tx.
+					Exec(sql).
+					Error; err != nil {
+						tx.Rollback()
+						response.Fail(ctx, nil, "更新失败")
+						return
+				}
+			}
+		} else if data.Table == "行字段一对多映射" {
+			sql := "RENAME TABLE " + curDetail.Value + "_" + strconv.FormatUint(uint64(id), 10) + " TO " + data.Value + "_" + strconv.FormatUint(uint64(id), 10)
+			if err := tx.
+				Exec(sql).
+				Error; err != nil {
+					tx.Rollback()
+					response.Fail(ctx, nil, "更新失败")
+					return
+			}
+		}
+	}
+
+	if err := tx.
+	Model(&model.MapVersionDetail{}).
+	Where("id = ?", curDetail.Id).
+	Updates(&data).
+	Error; err != nil {
+		tx.Rollback()
+		response.Fail(ctx, nil, "更新失败")
+		return
+	}
+
+	if err := tx.
+	Create(&model.MapHistory{
+		UserId: user.Id,
+		VerName: curMapVer.VersionName,
+		Table: data.Table,
+		Key: data.Key,
+		Value: data.Value,
+		Option: "更新(后)",
+	}).
+	Error; err != nil {
+		tx.Rollback()
+		response.Fail(ctx, nil, "更新失败")
+		return
+	}
+
+	if err := tx.
+	Create(&model.MapHistory{
+		UserId: user.Id,
+		VerName: curMapVer.VersionName,
+		Table: curDetail.Table,
+		Key: curDetail.Key,
+		Value: curDetail.Value,
+		Option: "更新(前)",
+	}).
+	Error; err != nil {
+		tx.Rollback()
+		response.Fail(ctx, nil, "更新失败")
+		return
+	}
+
+	// 如果是使用中版本就修改内存中的数据
+	if isActiveVersion {
+		val, ok := util.MapMap[data.Table]
+		if !ok {
+			tx.Rollback()
+			response.Fail(ctx, nil, "更新失败")
+			return
+		}
+		if curDetail.Key != data.Key {
+			val.Remove(curDetail.Key)
+		}
+		val.Set(data.Key, data.Value)
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		response.Fail(ctx, nil, "更新失败")
+		return
+	}
+
+	response.Success(ctx, nil, "更新成功")
 }

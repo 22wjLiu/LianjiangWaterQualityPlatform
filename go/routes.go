@@ -120,6 +120,12 @@ func CollectRoute(r *gin.Engine) *gin.Engine {
 	// 创建映射
 	r.POST("/createMap/:id", middleware.AuthMiddleware(), controller.CreateMap)	
 
+	// 删除映射
+	r.DELETE("/deleteMap/:id", middleware.AuthMiddleware(), controller.DeleteMap)	
+
+	// 更新映射
+	r.PUT("/updateMap/:id/:curMapId", middleware.AuthMiddleware(), controller.UpdateMap)	
+
 	// 预测
 	// r.GET("/forecast", middleware.AuthMiddleware(), controller.Forecast)
 	

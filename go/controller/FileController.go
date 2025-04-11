@@ -478,7 +478,7 @@ func Upload(ctx *gin.Context) {
 					return
 				}
 				// 如果是一对多行字段
-				db, isRowAll, err:= util.CheckAndRecordRowAllData(db, index, res, i, 0, tableInfo.Id)
+				db, isRowAll, err:= util.CheckAndRecordRowAllData(db, index, res, i, 0, tableInfo.Id, mapVer.Id)
 				if isRowAll {
 					if !isEndDataLine {
 						isEndDataLine = true

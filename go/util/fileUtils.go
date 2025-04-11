@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"strconv"
 	"log"
 	"time"
 	"os"
@@ -245,9 +246,9 @@ func CheckAndRecordRowOneData(db *gorm.DB, data [][]string, i int, j int, tableI
 
 // @title    CheckAndRecordRowAllData
 // @description   检查并录入一对多行字段数据
-// @param     db *gorm.DB, data [][]string, i int, j int, tableId int			数据库实例，数据，行，列，数据表ID
+// @param     db *gorm.DB, data [][]string, i int, j int, tableId uint, verId uint			数据库实例，数据，行，列，数据表ID，映射版本ID
 // @return    *gorm.DB, bool																	数据库实例，是否存在一对多行字段数据
-func CheckAndRecordRowAllData(db *gorm.DB, index []string, data [][]string, i int, j int, tableId uint) (*gorm.DB, bool, error){
+func CheckAndRecordRowAllData(db *gorm.DB, index []string, data [][]string, i int, j int, tableId uint, verId uint) (*gorm.DB, bool, error){
 	row, ok := RowAllMap.Get(data[i][j])
 	// 如果不是一对多行字段
 	if !ok {
@@ -272,7 +273,7 @@ func CheckAndRecordRowAllData(db *gorm.DB, index []string, data [][]string, i in
 
 	rowAllStr = append(rowAllStr, "rowall_formula")
 
-	rowAllTableName := row.(string)
+	rowAllTableName := row.(string) + "_" + strconv.FormatUint(uint64(verId), 10)
 
 	// 查看是否存在表
 	if !db.Migrator().HasTable(rowAllTableName) {
