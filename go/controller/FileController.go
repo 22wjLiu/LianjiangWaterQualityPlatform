@@ -189,6 +189,15 @@ func Upload(ctx *gin.Context) {
 		return
 	}
 
+	var mapDetails []model.MapVersionDetail
+
+	if err := db.Where("ver_id = ? and `table` = ?", mapVer.Id, "列字段映射").Find(&mapDetails).Error; err != nil {
+		isErrorBeforeData = true
+		log.Println("获取当前映射信息错误")
+		response.Fail(ctx, nil, "获取当前映射信息错误")
+		return
+	}
+
 	st, _ := util.StationMap.Get(stName)
 
 	tableName := sys.(string) + "_" + st.(string) + "_" + fmt.Sprintf("%d", mapVer.Id)
@@ -230,11 +239,11 @@ func Upload(ctx *gin.Context) {
 		var rowTime []string
 		var rowStr  []string
 
-		for _, v := range index {
-			if strings.HasPrefix(v, "time")	{
-				rowTime = append(rowTime, v)
+		for _, v := range mapDetails {
+			if strings.HasPrefix(v.Value, "time")	{
+				rowTime = append(rowTime, v.Value)
 			} else {
-				rowStr = append(rowStr, v)
+				rowStr = append(rowStr, v.Value)
 			}
 		}
 
@@ -673,23 +682,6 @@ func Upload(ctx *gin.Context) {
 	if err := db.Table("data_table_infos").Where("id = ?", tableInfo.Id).Updates(&updateTime).Error; err != nil {
 		log.Printf("更新数据表开始时间和结束时间失败：%v\n", err)
 		response.Fail(ctx, nil, "存储数据表失败")
-		isErrorHappen = true
-		return
-	}
-
-	dataHistory = model.DataHistory{
-		UserId:      user.Id,
-		StartTime:   startTime.Format(util.ReadableTimeFormat),
-		EndTime:     endTime.Format(util.ReadableTimeFormat),
-		StationName: stName,
-		System:      system,
-		Option:      "创建",
-	}
-
-	// 创建数据历史记录
-	if err := db.Create(&dataHistory).Error; err != nil {
-		log.Printf("创建文件历史记录失败：%v\n", err)
-		response.Fail(ctx, nil, "创建文件历史记录失败")
 		isErrorHappen = true
 		return
 	}

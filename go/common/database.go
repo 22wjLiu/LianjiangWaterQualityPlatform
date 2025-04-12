@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/viper"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 var DB *gorm.DB
@@ -36,8 +37,12 @@ func InitDB() *gorm.DB {
 		charset,
 		url.QueryEscape(loc),
 	)
-	db, err := gorm.Open(mysql.Open(args), &gorm.Config{})
-	// TODO  如果未能连接到数据库，终止程序并返回错误信息
+
+	db, err := gorm.Open(mysql.Open(args), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Silent),
+	})
+
+	// 如果未能连接到数据库，终止程序并返回错误信息
 	if err != nil {
 		log.Fatalf("连接mysql数据库失败, 原因: " + err.Error())
 	}
@@ -60,6 +65,3 @@ func InitDB() *gorm.DB {
 func GetDB() *gorm.DB {
 	return DB
 }
-
-
-// 

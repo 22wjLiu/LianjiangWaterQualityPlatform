@@ -3,18 +3,17 @@
 package controller
 
 import (
-	// "bytes"
+	"errors"
 	"lianjiang/common"
 	"lianjiang/model"
 	"lianjiang/util"
 	"lianjiang/dto"
-	// "log"
-	// "os/exec"
-	// "strconv"
 	"time"
-	// "unicode"
+	"strconv"
 
 	"lianjiang/response"
+
+	"gorm.io/gorm"
 
 	"github.com/gin-gonic/gin"
 )
@@ -40,212 +39,6 @@ func ShowStationsWhichHasData(ctx *gin.Context) {
 	// 返回映射类型
 	response.Success(ctx, gin.H{"names": names}, "请求成功")
 }
-
-// // @title    DeleteData
-// // @description   删除点集数据
-// // @param    ctx *gin.Context       接收一个上下文
-// // @return   void
-// func DeleteData(ctx *gin.Context) {
-// 	tuser, _ := ctx.Get("user")
-
-// 	user := tuser.(model.User)
-
-// 	// TODO 安全等级在四级以下的用户不能删除数据
-// 	if user.Level < 4 {
-// 		response.Fail(ctx, nil, "权限不足")
-// 		return
-// 	}
-
-// 	// TODO 获取path中的start
-// 	start := ctx.Params.ByName("start")
-
-// 	if start == "" {
-// 		start = "2000-01-01"
-// 	}
-
-// 	// TODO 获取path中的end
-// 	end := ctx.Params.ByName("end")
-
-// 	if end == "" {
-// 		end = time.Now().Format("2006-01-02")
-// 	}
-
-// 	// TODO 获取path中的time
-// 	time := ctx.Params.ByName("time")
-
-// 	// TODO 取出请求
-// 	sys := ctx.DefaultQuery("system", "")
-// 	name := ctx.DefaultQuery("name", "")
-
-// 	// TODO 尝试取出制度
-// 	var system interface{}
-
-// 	if sys != "" {
-// 		if !util.SysMap.Has(sys) {
-// 			response.Fail(ctx, nil, "时间制度"+sys+"不存在")
-// 			return
-// 		}
-// 		system, _ = util.SysMap.Get(sys)
-// 	} else {
-// 		system = ""
-// 	}
-
-// 	// TODO 尝试取出站名
-// 	var stationName interface{}
-
-// 	if name != "" {
-// 		if !util.StationMap.Has(name) {
-// 			response.Fail(ctx, nil, "站名"+name+"不存在")
-// 			return
-// 		}
-// 		stationName, _ = util.StationMap.Get(name)
-// 	} else {
-// 		stationName = ""
-// 	}
-
-// 	// TODO 组合数组
-// 	systems, stationNames := make([]string, 0), make([]string, 0)
-
-// 	// TODO 如果为空，取出所有值
-// 	if stationName.(string) == "" {
-// 		stationNames = util.StationMap.Keys()
-// 		for i, v := range stationNames {
-// 			s, _ := util.StationMap.Get(v)
-// 			stationNames[i] = s.(string)
-// 		}
-// 	} else {
-// 		stationNames = append(stationNames, stationName.(string))
-// 	}
-
-// 	if system.(string) == "" {
-// 		systems = util.SysMap.Keys()
-// 		for i, v := range systems {
-// 			s, _ := util.SysMap.Get(v)
-// 			systems[i] = s.(string)
-// 		}
-// 	} else {
-// 		systems = append(systems, system.(string))
-// 	}
-
-// 	// TODO 删除对应数据
-// 	db := common.GetDB()
-// 	for _, sys := range systems {
-// 		for _, sta := range stationNames {
-// 			if db.Migrator().HasTable(sys + "_" + sta) {
-// 				db.Table(sys+"_"+sta).Where(time+" >= ? and "+time+" <= ?", start, end).Delete(model.Point{})
-// 			}
-// 		}
-// 	}
-// 	// TODO 创建数据历史记录
-// 	db.Create(&model.DataHistory{
-// 		UserId:      user.Id,
-// 		Option:      "删除",
-// 		StartTime:   start,
-// 		EndTime:     end,
-// 		StationName: name,
-// 		System:      sys,
-// 	})
-
-// 	response.Success(ctx, nil, "删除成功")
-// }
-
-// // @title    RecoverData
-// // @description   恢复点集数据
-// // @param    ctx *gin.Context       接收一个上下文
-// // @return   void
-// func RecoverData(ctx *gin.Context) {
-// 	tuser, _ := ctx.Get("user")
-
-// 	user := tuser.(model.User)
-
-// 	// TODO 安全等级在四级以下的用户不能删除数据
-// 	if user.Level < 4 {
-// 		response.Fail(ctx, nil, "权限不足")
-// 		return
-// 	}
-
-// 	// TODO 获取path中的start
-// 	start := ctx.Params.ByName("start")
-
-// 	if start == "" {
-// 		start = "2000-01-01"
-// 	}
-
-// 	// TODO 获取path中的end
-// 	end := ctx.Params.ByName("end")
-
-// 	if end == "" {
-// 		end = time.Now().Format("2006-01-02")
-// 	}
-
-// 	// TODO 获取path中的time
-// 	time := ctx.Params.ByName("time")
-
-// 	// TODO 取出请求
-// 	sys := ctx.DefaultQuery("system", "")
-// 	name := ctx.DefaultQuery("name", "")
-
-// 	// TODO 尝试取出制度
-// 	var system interface{}
-
-// 	if sys != "" {
-// 		if !util.SysMap.Has(sys) {
-// 			response.Fail(ctx, nil, "时间制度"+sys+"不存在")
-// 			return
-// 		}
-// 		system, _ = util.SysMap.Get(sys)
-// 	} else {
-// 		system = ""
-// 	}
-
-// 	// TODO 尝试取出站名
-// 	var stationName interface{}
-
-// 	if name != "" {
-// 		if !util.StationMap.Has(name) {
-// 			response.Fail(ctx, nil, "站名"+name+"不存在")
-// 			return
-// 		}
-// 		stationName, _ = util.StationMap.Get(name)
-// 	} else {
-// 		stationName = ""
-// 	}
-
-// 	// TODO 组合数组
-// 	systems, stationNames := make([]string, 0), make([]string, 0)
-
-// 	// TODO 如果为空，取出所有值
-// 	if stationName.(string) == "" {
-// 		stationNames = util.StationMap.Keys()
-// 		for i, v := range stationNames {
-// 			s, _ := util.StationMap.Get(v)
-// 			stationNames[i] = s.(string)
-// 		}
-// 	} else {
-// 		stationNames = append(stationNames, stationName.(string))
-// 	}
-
-// 	if system.(string) == "" {
-// 		systems = util.SysMap.Keys()
-// 		for i, v := range systems {
-// 			s, _ := util.SysMap.Get(v)
-// 			systems[i] = s.(string)
-// 		}
-// 	} else {
-// 		systems = append(systems, system.(string))
-// 	}
-
-// 	// TODO 恢复对应数据
-// 	db := common.GetDB()
-// 	for _, sys := range systems {
-// 		for _, sta := range stationNames {
-// 			if db.Migrator().HasTable(sys + "_" + sta) {
-// 				db.Table(sys+"_"+sta).Where(time+" >= ? and "+time+" <= ?", start, end).Update("deleted_at", nil)
-// 			}
-// 		}
-// 	}
-// 	response.Success(ctx, nil, "恢复成功")
-// }
 
 // // @title    ShowDataTimeRange
 // // @description   获取点集数据时间范围
@@ -315,10 +108,10 @@ func ShowDataTimeRange(ctx *gin.Context) {
 	},"查找成功")
 }
 
-// // @title    ShowData
-// // @description   获取点集数据
-// // @param    ctx *gin.Context       接收一个上下文
-// // @return   void
+// @title    ShowData
+// @description   前台获取点集数据
+// @param    ctx *gin.Context       接收一个上下文
+// @return   void
 func ShowData(ctx *gin.Context) {
 
 	// 获取站名
@@ -346,38 +139,17 @@ func ShowData(ctx *gin.Context) {
 		return
 	}
 
-	// 获取path中的fields
-	f := ctx.QueryArray("fields")
-
-	fields := make([]string, len(f), len(f))
-	for i, v := range f {
-		field, ok := util.PointMap.Get(v)
-		if !ok {
-			response.Fail(ctx, nil, "不存在字段"+v)
-			return
-		}
-		fields[i] = field.(string)
-	}
-
-	fields = append(fields, "time")
-
 	db := common.GetDB()
 
 	var tableInfo model.DataTableInfo
-	if err := db.Table("data_table_infos").Where("station_name = ? and system = ?", name, system).First(&tableInfo).Error; err != nil {
+	if err := db.Table("data_table_infos").Where("station_name = ? and system = ? and active = 1", name, system).First(&tableInfo).Error; err != nil {
 		response.Fail(ctx, nil, "数据丢失")
-		return
-	}
-
-	fields, err := util.GetExistingFields(db, tableInfo.DataTableName, fields)
-	if err != nil {
-		response.Fail(ctx, nil, "字段出错")
 		return
 	}
 
 	// 查看是否存在该表
 	var exists bool
-	err = db.Raw(`
+	err := db.Raw(`
 	SELECT COUNT(*) > 0 FROM information_schema.tables 
 	WHERE table_schema = DATABASE() AND table_name = ?
 	`, tableInfo.DataTableName).Scan(&exists).Error
@@ -392,7 +164,7 @@ func ShowData(ctx *gin.Context) {
 		return
 	}
 
-	db = db.Table(tableInfo.DataTableName).Select("time")
+	queryDB := common.GetDB().Table(tableInfo.DataTableName)
 
 	startNotNull := false
 	endNotNull := false
@@ -407,7 +179,7 @@ func ShowData(ctx *gin.Context) {
 			return
 		}
 		start = s.Format(util.ReadableTimeFormat)
-		db = db.Where("time >= ?", start)
+		queryDB = queryDB.Where("time >= ?", start)
 	}
 
 	end := ctx.DefaultQuery("end", "")
@@ -422,13 +194,13 @@ func ShowData(ctx *gin.Context) {
 		if !startNotNull {
 			start = e.AddDate(0, -3, 0).Format(util.ReadableTimeFormat)
 		}
-		db = db.Where("time <= ?", end)
+		queryDB = queryDB.Where("time <= ?", end)
 	}
 
 	var endTime time.Time
 
 	if !endNotNull {
-		err = db.Select("MAX(time) as max_time").Row().Scan(&endTime)
+		err = db.Table(tableInfo.DataTableName).Select("MAX(time) as max_time").Row().Scan(&endTime)
 
 		if err != nil {
 			response.Fail(ctx, nil, "查询时间失败")
@@ -445,8 +217,7 @@ func ShowData(ctx *gin.Context) {
 	// 查找对应数组
 	resultArr := make([]map[string]interface{}, 0)
 
-	db.Table(tableInfo.DataTableName).
-		Select(fields).
+	queryDB.Table(tableInfo.DataTableName).
 		Where("time >= ? and time <= ?", start, end).
 		Scan(&resultArr)
 
@@ -457,161 +228,259 @@ func ShowData(ctx *gin.Context) {
 		}, "查找成功")
 }
 
-// // @title    ShowRowAllData
-// // @description   获取一对多行字段点集数据
-// // @param    ctx *gin.Context       接收一个上下文
-// // @return   void
-// func ShowRowAllData(ctx *gin.Context) {
+// @title    ShowStationMapSystem
+// @description   获取有数据站名及其映射版本、制度信息
+// @param    ctx *gin.Context       接收一个上下文
+// @return   void
+func ShowStationMapSystem(ctx *gin.Context) {
+	// 获取登录用户
+	tuser, _ := ctx.Get("user")
 
-// 	// TODO 获取path中的name
-// 	n := ctx.Params.ByName("name")
+	user := tuser.(model.User)
 
-// 	name, ok := util.StationMap.Get(n)
+	// 安全等级在四级以下的用户不能获取点集数据
+	if user.Level < 4 {
+		response.Fail(ctx, nil, "权限不足")
+		return
+	}
 
-// 	if !ok {
-// 		response.Fail(ctx, nil, "不存在站名"+n)
-// 		return
-// 	}
+	var tableInfos []map[string]interface{}
 
-// 	// TODO 获取path中的key
-// 	k := ctx.Params.ByName("key")
+	db := common.GetDB()
 
-// 	key, ok := util.RowAllMap.Get(k)
+	if err := db.
+	Model(&model.DataTableInfo{}).
+	Select("data_table_infos.station_name, data_table_infos.data_table_name, data_table_infos.system, data_table_infos.map_ver_id, map_versions.version_name").
+	Joins("LEFT JOIN map_versions ON data_table_infos.map_ver_id = map_versions.id").
+	Group("data_table_infos.station_name, data_table_infos.data_table_name, data_table_infos.system, data_table_infos.map_ver_id, map_versions.version_name").
+	Scan(&tableInfos).Error; err != nil {
+	response.Fail(ctx, nil, "查询站点信息出错")
+	return
+}
 
-// 	if !ok {
-// 		response.Fail(ctx, nil, "不存在字段"+k)
-// 		return
-// 	}
+	response.Success(ctx, gin.H{"tableInfos": tableInfos}, "查找成功")
+}
 
-// 	// TODO 获取path中的fields
-// 	f := ctx.QueryArray("fields")
+// @title    ShowDataBackStage
+// @description   后台获取点集数据
+// @param    ctx *gin.Context       接收一个上下文
+// @return   void
+func ShowDataBackStage(ctx *gin.Context) {
+	// 获取登录用户
+	tuser, _ := ctx.Get("user")
 
-// 	fields := make([]string, len(f), len(f))
-// 	for i, v := range f {
-// 		field, ok := util.PointMap.Get(v)
-// 		if !ok {
-// 			response.Fail(ctx, nil, "不存在字段"+v)
-// 			return
-// 		}
-// 		fields[i] = util.StringToSql(field.(string))
-// 	}
+	user := tuser.(model.User)
 
-// 	fields = append(fields, "start_time")
-// 	fields = append(fields, "end_time")
+	// 安全等级在四级以下的用户不能获取点集数据
+	if user.Level < 4 {
+		response.Fail(ctx, nil, "权限不足")
+		return
+	}
 
-// 	db := common.GetDB()
+	// 获取站名
+	stationName := ctx.DefaultQuery("station_name", "")
+	if stationName == "" {
+		response.Fail(ctx, nil, "参数错误")
+		return
+	}
 
-// 	// TODO 查看是否存在该表
-// 	if !db.Migrator().HasTable(key.(string)) {
-// 		response.Fail(ctx, nil, "不存在对应表")
-// 		return
-// 	}
+	// 获取制度
+	system := ctx.DefaultQuery("system", "")
+	if system == "" {
+		response.Fail(ctx, nil, "参数错误")
+		return
+	}
 
-// 	// TODO 取出请求
-// 	start := ctx.DefaultQuery("start", "2000-01-01")
-// 	end := ctx.DefaultQuery("end", time.Now().Format("2006-01-02"))
+	// 获取映射版本ID
+	mapId := ctx.DefaultQuery("map_ver_id", "")
+	if mapId == "" {
+		response.Fail(ctx, nil, "参数错误")
+		return
+	}
 
-// 	// TODO 搜索数据量
-// 	var total int64
+	temp, err := strconv.ParseUint(mapId, 10, 32)
+	if err != nil {
+		response.Fail(ctx, nil, "参数错误")
+		return
+	}
+	mapVerId := uint(temp)
 
-// 	db.Table(key.(string)).Where("start_time >= ? and end_time <= ?", start, end).Count(&total)
+	// 获取数据库指针
+	db := common.GetDB()
 
-// 	// TODO 查找对应数组
-// 	resultArr := make([]map[string]interface{}, 0)
+	var mapVer model.MapVersion
+	err = db.
+	Model(&model.MapVersion{}).
+	Where("id = ?", mapVerId).
+	Find(&mapVer).
+	Error
 
-// 	db.Table(key.(string)).Select(fields).Where("start_time >= ? and end_time <= ?", name.(string), start, end).Scan(&resultArr)
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		response.Fail(ctx, nil, "映射版本不存在")
+		return
+	} else if err != nil {
+		response.Fail(ctx, nil, "查找映射版本信息错误")
+		return
+	}
 
-// 	response.Success(ctx, gin.H{"resultArr": resultArr}, "查找成功")
-// }
+	var mapDetails []model.MapVersionDetail
 
-// // @title    ShowRowOneData
-// // @description   获取一对一行字段点集数据
-// // @param    ctx *gin.Context       接收一个上下文
-// // @return   void
-// func ShowRowOneData(ctx *gin.Context) {
+	if err := db.
+		Model(&model.MapVersionDetail{}).
+		Where("ver_id = ? and `table` = ?", mapVerId, "列字段映射").
+		Find(&mapDetails).
+		Error; err != nil {
+			response.Fail(ctx, nil, "查询映射信息错误")
+			return
+		}
 
-// 	// TODO 获取path中的name
-// 	n := ctx.Params.ByName("name")
+	var tableInfo model.DataTableInfo
 
-// 	name, ok := util.StationMap.Get(n)
+	err = db.
+		Model(&model.DataTableInfo{}).
+		Where("station_name = ? and map_ver_id = ?", stationName, mapVerId).
+		First(&tableInfo).
+		Error
 
-// 	if !ok {
-// 		response.Fail(ctx, nil, "不存在站名"+n)
-// 		return
-// 	}
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		response.Fail(ctx, nil, "站点数据不存在")
+		return
+	} else if err != nil {
+		response.Fail(ctx, nil, "查询站点数据错误")
+		return
+	}
 
-// 	// TODO 获取path中的key
-// 	k := ctx.Params.ByName("key")
+	db = db.Table(tableInfo.DataTableName)
 
-// 	key, ok := util.RowAllMap.Get(k)
+	// 读取参数请求
+	start := ctx.Params.ByName("start")
 
-// 	if !ok {
-// 		response.Fail(ctx, nil, "不存在字段"+k)
-// 		return
-// 	}
+	if start != "" && start != "null" {
+		start, err := time.Parse(util.ReadableTimeFormat, start)
+		if err == nil{
+			db = db.Where("time >= ?", start)
+		} else {
+			response.Fail(ctx, nil, "错误的文件日志开始时间")
+			return
+		}
+	}
 
-// 	db := common.GetDB()
+	end := ctx.Params.ByName("end")
 
-// 	// TODO 查看是否存在该表
-// 	if !db.Migrator().HasTable(key.(string)) {
-// 		response.Fail(ctx, nil, "不存在对应表")
-// 		return
-// 	}
+	if end != "" && end != "null" {
+		end, err := time.Parse(util.ReadableTimeFormat, end)
+		if err == nil{
+			db = db.Where("time <= ?", end)
+		} else {
+			response.Fail(ctx, nil, "错误的数据日志结束时间")
+			return
+		}
+	}
 
-// 	// TODO 取出请求
-// 	start := ctx.DefaultQuery("start", "2000-01-01")
-// 	end := ctx.DefaultQuery("end", time.Now().Format("2006-01-02"))
+	// 查询总数
+	var total int64
+	db.Count(&total)
 
-// 	// TODO 搜索数据量
-// 	var total int64
+	// 获取分页
+	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(ctx.DefaultQuery("pageSize", "25"))
+		
+	offset := (page - 1) * pageSize
 
-// 	db.Table(key.(string)).Where("start_time >= ? and end_time <= ?", start, end).Count(&total)
+	resultArr := make([]map[string]interface{}, 0)
 
-// 	// TODO 查找对应数组
-// 	resultArr := make([]map[string]interface{}, 0)
-// 	db.Table(key.(string)).Select([]string{"detail", "start_time", "end_time"}).Where("station_name = ? and start_time >= ? and end_time <= ?", name.(string), start, end).Scan(&resultArr)
+	selectSQl := ""
 
-// 	response.Success(ctx, gin.H{"resultArr": resultArr}, "查找成功")
-// }
+	for _, item := range mapDetails {
+		selectSQl += "`" + item.Value + "` AS '" + item.Key + "' ,"
+	}
 
-// // @title    Forecast
-// // @description   进行数据预测
-// // @param    ctx *gin.Context       接收一个上下文
-// // @return   void
-// func Forecast(ctx *gin.Context) {
-// 	// TODO 读取数据
-// 	Temperature := ctx.Query("Temperature")
-// 	PH := ctx.Query("PH")
-// 	Turbidity := ctx.Query("Turbidity")
-// 	DO := ctx.Query("DO")
+	selectSQl = selectSQl[: len(selectSQl) - 2]
 
-// 	if Temperature == "" || PH == "" || Turbidity == "" || DO == "" {
-// 		response.Fail(ctx, nil, "参数错误")
-// 		return
-// 	}
+	subQuery := db.
+	Order("time DESC").
+	Limit(10000)
 
-// 	// TODO python main.py
-// 	cmd := exec.Command("python", "main.py", "--Temperature", Temperature, "--PH", PH, "--Turbidity", Turbidity, "--DO", DO)
-// 	var out, stderr bytes.Buffer
-// 	cmd.Stderr = &stderr
-// 	cmd.Stdout = &out
-// 	if err := cmd.Run(); err != nil {
-// 		response.Fail(ctx, nil, "参数错误")
-// 		return
-// 	}
-// 	res := out.String()
+	result := db.
+	Select(selectSQl).
+	Table("(?) as t", subQuery).
+	Limit(pageSize).
+	Offset(offset).
+	Scan(&resultArr)
+	
+	if result.Error != nil {
+		response.Fail(ctx, nil, "查询失败")
+		return
+	}
+		
+	// 返回分页数据
+	response.Success(ctx, gin.H{
+		"resultArr": resultArr,
+		"total": total,
+		"versionName": mapVer.VersionName,
+		"stationName": stationName,
+		"system": system,
+		"dataTableName": tableInfo.DataTableName,
+	}, "查询成功")
+}
 
-// 	var data []float64
+// @title    DeleteDataBackStage
+// @description   删除后台数据
+// @param    ctx *gin.Context       接收一个上下文
+// @return   void
+func DeleteDataBackStage(ctx *gin.Context){
+	// 获取登录用户
+	tuser, _ := ctx.Get("user")
 
-// 	before := 0
+	user := tuser.(model.User)
+	
+	// 安全等级在四级以下的用户不能查看历史操作记录
+	if user.Level < 4 {
+		response.Fail(ctx, nil, "权限不足")
+		return
+	}
 
-// 	for i, s := range []rune(res) {
-// 		if s != '.' && !unicode.IsDigit(s) {
-// 			data1, _ := strconv.ParseFloat(res[before:i], 64)
-// 			before = i + 1
-// 			data = append(data, data1)
-// 		}
-// 	}
+	// 解析请求体
+	var resq dto.BatchDeleteTimeId
+	if err := ctx.ShouldBindJSON(&resq); err != nil {
+		response.Fail(ctx, nil, "请求体参数解析错误")
+		return
+	}
 
-// 	response.Success(ctx, gin.H{"data": data}, "查找成功")
-// }
+	// 开启事务
+	db := common.GetDB()
+	tx := db.Begin()
+	
+	result := tx.Table(resq.DataTableName).Where("time IN ?", resq.Times).Delete(nil)
+
+	if result.Error != nil {
+		tx.Rollback()
+		response.Fail(ctx, nil, "删除失败，已撤销")
+		return
+	}
+
+	for _, time := range resq.Times {
+		if err := tx.
+		Model(&model.DataHistory{}).
+		Create(&model.DataHistory{
+			UserId: 			user.Id,
+			Time: 				time,
+			StationName: 	resq.StationName,
+			System: 			resq.System,
+			VersionName:	resq.VersionName,
+			Option:				"删除",
+		}).Error; err != nil {
+			tx.Rollback()
+			response.Fail(ctx, nil, "删除失败，已撤销")
+			return
+		}
+	}
+	
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		response.Fail(ctx, nil, "删除失败，已撤销")
+		return
+	}
+
+	response.Success(ctx, gin.H{"num": result.RowsAffected}, "删除成功")
+}

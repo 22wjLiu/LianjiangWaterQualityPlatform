@@ -267,34 +267,3 @@ func BuildCreateTableSQL_Str_T(tableName string, timeCols []string, strCols []st
 			tableName, strings.Join(colDefs, ",\n  "), uniqueKeySql)
 	return sql
 }
-
-// @title    GetExistingFields
-// @description   筛选出表中存在的字段
-// @param    db *gorm.DB, tableName string, fields []string      
-// @return   []string, error
-func GetExistingFields(db *gorm.DB, tableName string, fields []string) ([]string, error) {
-	var existingFields []string
-
-	var columnNames []string
-	err := db.Raw(`
-		SELECT COLUMN_NAME FROM information_schema.columns 
-		WHERE table_schema = DATABASE() AND table_name = ?
-	`, tableName).Scan(&columnNames).Error
-	if err != nil {
-		return nil, err
-	}
-
-	// 用 map 判断存在性
-	columnMap := map[string]struct{}{}
-	for _, name := range columnNames {
-		columnMap[name] = struct{}{}
-	}
-
-	for _, f := range fields {
-		if _, ok := columnMap[f]; ok {
-			existingFields = append(existingFields, f)
-		}
-	}
-
-	return existingFields, nil
-}

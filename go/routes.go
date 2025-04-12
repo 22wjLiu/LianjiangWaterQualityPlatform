@@ -41,7 +41,7 @@ func CollectRoute(r *gin.Engine) *gin.Engine {
 	// 更新用户信息（用户名、等级）
 	r.PUT("/user/:id", middleware.AuthMiddleware(), controller.UpdateUser)
 
-	// TODO 文件上传
+	// 文件上传
 	r.POST("/upload/:system", middleware.AuthMiddleware(), controller.Upload)
 
 	// 文件列表
@@ -59,8 +59,17 @@ func CollectRoute(r *gin.Engine) *gin.Engine {
 	// 查询文件信息
 	r.GET("/fileInfos/:start/:end", middleware.AuthMiddleware(), controller.ShowFileInfos)
 
-	// 数据获取
+	// 前台数据获取
 	r.GET("/data/:name/:system", middleware.AuthMiddleware(), controller.ShowData)
+
+	// 获取站名、制度、映射版本名
+	r.GET("/dataTableInfos", middleware.AuthMiddleware(), controller.ShowStationMapSystem)
+
+	// 后台数据获取
+	r.GET("/dataBackStage/:start/:end", middleware.AuthMiddleware(), controller.ShowDataBackStage)
+
+	// 后台数据删除
+	r.DELETE("/dataBackStage", middleware.AuthMiddleware(), controller.DeleteDataBackStage)
 
 	// 获取已存数据站的站名
 	r.GET("/stationName", middleware.AuthMiddleware(), controller.ShowStationsWhichHasData)

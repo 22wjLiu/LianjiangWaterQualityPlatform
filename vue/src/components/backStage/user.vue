@@ -147,7 +147,7 @@
 
 <script>
 import { formatTime, dateFullFormatTime } from "@/util/timeFormater.js";
-import { getUsers, updateUser, deleteUser, deleteUsers } from "@/api/user.js";
+import { getUsers, updateUser, deleteUsers } from "@/api/user.js";
 export default {
   data() {
     return {

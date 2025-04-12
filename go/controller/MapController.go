@@ -239,7 +239,7 @@ func ShowMapInfos(ctx *gin.Context) {
 
 	// 获取分页
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(ctx.DefaultQuery("pageSize", "25"))
+	pageSize, _ := strconv.Atoi(ctx.DefaultQuery("pageSize", "10"))
 	
 	offset := (page - 1) * pageSize
 

@@ -140,13 +140,8 @@ export default {
         params += `start=${this.fullFormatTime(start)}&`;
       }
       if (end) {
-        params += `end=${this.fullFormatTime(end)}&`;
+        params += `end=${this.fullFormatTime(end)}`;
       }
-      this.options.forEach((item) => {
-        params += "fields=" + item.key + "&";
-      });
-      const last = params.lastIndexOf("&");
-      params = params.slice(0, last);
 
       getLineData(this.stationName, this.system, params)
         .then((res) => {
@@ -155,21 +150,22 @@ export default {
             this.startTime = res.data.startTime;
             this.endTime = res.data.endTime;
             let data = res.data.resultArr;
-            // 将表中数值为 0 的字段赋值为 ''
-            data = data.map((item) => {
-              Object.keys(item).forEach((key) => {
-                if (item[key] <= 0) {
+            if (data.length) {
+              // 将表中数值为 0 的字段赋值为 ''
+              data = data.map((item) => {
+                Object.keys(item).forEach((key) => {
+                  if (item[key] <= 0) {
                   item[key] = "";
-                }
+                  } 
+                });
+               return item;
               });
-              return item;
-            });
-            this.lineData = data;
-            // 计算 data 中 time 字段的索引
-            this.indexOfTime = Object.keys(data[0]).indexOf("time");
-
-            this.myChart.hideLoading();
-            this.draw(this.buildSeries(), this.buildSelected());
+              this.lineData = data;
+              // 计算 data 中 time 字段的索引
+              this.indexOfTime = Object.keys(data[0]).indexOf("time");
+              this.myChart.hideLoading();
+              this.draw(this.buildSeries(), this.buildSelected());
+            }
           }
         })
         .catch((err) => {
@@ -220,9 +216,10 @@ export default {
     // 构造MyCharts.options.series
     buildSeries() {
       const series = [];
+      let index = 0;
       Object.keys(this.lineData[0]).forEach((key, index) => {
-        this.options.forEach((item) => {
-          if (item.value === key) {
+        this.options.some((item) => {
+          if (key === item.value){
             series.push({
               type: "line",
               symbol: "none",
@@ -237,9 +234,13 @@ export default {
                 y: index,
               },
             });
+            return true;
           }
-        });
-      });
+          return false;
+        }
+      );
+      })
+      
       return series;
     },
     buildSelected() {
