@@ -52,6 +52,7 @@ export default {
     return {
       dialogFormVisible: false,
       field: "",
+      selected: "",
       start: "",
       end: "",
       system: "",
@@ -109,7 +110,7 @@ export default {
           trigger: "axis",
         },
         title: {
-          text: "对未来的观测值预测",
+          text: `对${this.selected}的未来观测值`,
           left: "center",
           textStyle: {
             fontFamily: "SimSun",
@@ -196,6 +197,13 @@ export default {
             this.data = res.data.result.forecast;
             if (this.data) {
               this.myChart.hideLoading();
+              this.options.some((item) => {
+                if(item.value === this.field) {
+                  this.selected = item.key;
+                  return true;
+                }
+                return false;
+              })
               this.draw(this.buildSeries());
             }
           }

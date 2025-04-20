@@ -25,7 +25,7 @@ const routes = [
   { path: "/welcome", component: Welcome, meta: { keepAlive: false } },
   { path: "/login", component: Login, meta: { keepAlive: false } },
   { path: "/register", component: Register, meta: { keepAlive: false } },
-  { path: "/overview", component: Overview, meta: { keepAlive: true } },
+  { path: "/overview", component: Overview, meta: { keepAlive: false } },
   { path: "/graph", component: Graph, meta: { keepAlive: true } },
   { path: "/file", component: File, meta: { keepAlive: false } },
   { path: "/backStage", redirect: "/backStage/user" },
