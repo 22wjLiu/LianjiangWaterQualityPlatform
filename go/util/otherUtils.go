@@ -30,6 +30,9 @@ import (
 // 可读时间格式定义
 var ReadableTimeFormat = "2006-01-02 15:04:05"
 
+// 预测时间格式定义
+var ForecastTimeFormat = "2006-01-02 15:04"
+
 // 转换Excel时间格式定义
 var ExcelTimeFormat = "2006/1/2 15:04"
 

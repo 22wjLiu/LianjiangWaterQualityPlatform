@@ -1,7 +1,7 @@
 <template>
   <div class="body">
-    <span style="position: relative; color:red; left: max(2.7%, 35px);">
-        需要先选择搜索项（站名、制度、映射版本）后点击"搜索"才会显示数据，且只会在所选时间范围内排序并查询10000条数据
+    <span style="position: relative; color: red; left: max(2.7%, 35px)">
+      需要先选择搜索项（站名、制度、映射版本）后点击"搜索"才会显示数据，且只会在所选时间范围内排序并查询10000条数据
     </span>
     <!-- 搜索输入区 -->
     <div class="searcher-container">
@@ -67,13 +67,24 @@
     <el-table
       :data="tableData"
       v-loading="loading"
-      style="width: 94.6%; min-width: 1230px; left: max(2.7%, 35px);"
+      style="width: 94.6%; min-width: 1230px; left: max(2.7%, 35px)"
       border
       @selection-change="handleSelectionChange"
     >
-    <el-table-column v-if="tableData.length" type="selection" align="center" width="55">
-    </el-table-column>
-      <el-table-column v-if="tableData.length" fixed="left" label="时间" align="center" width="150">
+      <el-table-column
+        v-if="tableData.length"
+        type="selection"
+        align="center"
+        width="55"
+      >
+      </el-table-column>
+      <el-table-column
+        v-if="tableData.length"
+        fixed="left"
+        label="时间"
+        align="center"
+        width="150"
+      >
         <template slot-scope="scope">
           {{ formatTime(scope.row["时间"]) }}
         </template>
@@ -84,21 +95,25 @@
         :key="key"
         :prop="key"
         :label="key"
-        align="center">
+        align="center"
+      >
       </el-table-column>
 
-      <el-table-column v-if="tableData.length" fixed="right" label="操作" align="center" width="150">
+      <el-table-column
+        v-if="tableData.length"
+        fixed="right"
+        label="操作"
+        align="center"
+        width="150"
+      >
         <template slot-scope="scope">
           <el-button
             type="primary"
             size="small"
-            @click="handleUpdate(scope.row.id, scope.row.name, scope.row.level)"
+            @click="handleUpdate(scope.row)"
             >编辑</el-button
           >
-          <el-button
-            type="danger"
-            size="small"
-            @click="handleDelete(scope.row)"
+          <el-button type="danger" size="small" @click="handleDelete(scope.row)"
             >删除</el-button
           >
         </template>
@@ -122,19 +137,23 @@
       >
     </div>
 
-    <el-dialog title="编辑用户信息表" :visible.sync="dialogFormVisible" center>
+    <el-dialog title="编辑数据表" :visible.sync="dialogFormVisible" center>
       <el-form
         ref="dataForm"
-        :rules="rules"
         :model="temp"
-        label-position="left"
-        label-width="70px"
+        label-position="right"
+        label-width="130px"
       >
-        <el-form-item label="用户名" prop="name">
+        <el-form-item
+          v-for="key in tableKeys"
+          :key="key"
+          :prop="key"
+          :label="key"
+        >
           <el-input
-            v-model="temp.name"
+            v-model="temp[key]"
             autocomplete="off"
-            placeholder="请设置用户名"
+            :placeholder="`请设置${key}的值`"
           >
           </el-input>
         </el-form-item>
@@ -148,11 +167,16 @@
 </template>
 
 <script>
-import { formatTime, fullFormatTime, dateFullFormatTime } from "@/util/timeFormater.js";
+import {
+  formatTime,
+  fullFormatTime,
+  dateFullFormatTime,
+} from "@/util/timeFormater.js";
 import {
   getDataTableInfos,
   getDataBackStage,
   deleteDataBackStage,
+  updateDataBackstage,
 } from "@/api/data.js";
 export default {
   data() {
@@ -161,6 +185,7 @@ export default {
       curParams: "",
       loading: false,
       dialogFormVisible: false,
+      mapVerId: "",
       tableData: [],
       tableKeys: [],
       createdAt: [],
@@ -170,7 +195,6 @@ export default {
       systemOptions: [],
       mapVersionOptions: [],
       temp: {},
-      origin: {},
       curSearchList: {
         stationName: "",
         system: "",
@@ -234,10 +258,6 @@ export default {
           },
         ],
       },
-      rules: {
-        name: [{ required: true, message: "用户名不能为空", trigger: "blur" }],
-        level: [{ required: true, message: "等级不能为空", trigger: "change" }],
-      },
     };
   },
   methods: {
@@ -250,7 +270,7 @@ export default {
           if (res.code === 200) {
             this.allOptions = res.data.tableInfos;
             this.allOptions.forEach((item) => {
-              let temp = { value: item.station_name }
+              let temp = { value: item.station_name };
               this.stationNameOptions.push(temp);
             });
           }
@@ -260,11 +280,13 @@ export default {
         });
     },
     handleStationChange(val) {
-      const matched = this.allOptions.filter(item => item.station_name === val);
+      const matched = this.allOptions.filter(
+        (item) => item.station_name === val
+      );
       this.systemOptions = [];
       this.mapVersionOptions = [];
       matched.forEach((item) => {
-        let temp = { value: item.system }
+        let temp = { value: item.system };
         this.systemOptions.push(temp);
         temp = {
           label: item.version_name,
@@ -299,12 +321,13 @@ export default {
           this.totalNum = res.data.total;
           if (this.tableData.length) {
             this.tableKeys = Object.keys(this.tableData[0]).filter((item) => {
-            return item !== "时间";
-           });
-           this.curSearchList.versionName = res.data.versionName;
-           this.curSearchList.stationName = res.data.stationName;
-           this.curSearchList.system = res.data.system;
-           this.curSearchList.dataTableName = res.data.dataTableName;
+              return item !== "时间";
+            });
+            this.mapVerId = this.searchList[2].value;
+            this.curSearchList.versionName = res.data.versionName;
+            this.curSearchList.stationName = res.data.stationName;
+            this.curSearchList.system = res.data.system;
+            this.curSearchList.dataTableName = res.data.dataTableName;
           }
           this.loading = false;
         })
@@ -316,18 +339,18 @@ export default {
     handleSearch() {
       let params = "";
       let errName = false;
-      this.searchList.some(item => {
+      this.searchList.some((item) => {
         if (item.value !== "") {
           params += item.label + "=" + item.value + "&";
         } else {
           errName = item.name;
-          return true
+          return true;
         }
-        return false
+        return false;
       });
       if (errName) {
-        this.$message.error(`${errName}不能为空`)
-        return
+        this.$message.error(`${errName}不能为空`);
+        return;
       }
       const last = params.lastIndexOf("&");
       params = params.slice(0, last);
@@ -352,9 +375,9 @@ export default {
       } else {
         this.selection.forEach((item) => {
           temp.push(this.fullFormatTime(item["时间"]));
-        })
+        });
       }
-      
+
       this.curSearchList.times = temp;
       deleteDataBackStage(this.curSearchList)
         .then((res) => {
@@ -377,23 +400,23 @@ export default {
       this.searchList[3].value = val;
       this.handleSearch();
     },
-    handleUpdate(id, name, level) {
-      this.origin = {
-        name: name,
-        level: level,
-      };
-      this.temp = Object.assign({}, this.origin);
-      this.origin.id = id;
+    handleUpdate(row) {
+      this.temp = Object.assign({}, row);
       this.dialogFormVisible = true;
       this.$nextTick(() => {
         this.$refs.dataForm.clearValidate();
       });
     },
     updateData() {
-      const body = Object.assign({}, this.temp);
-      if (this.temp.name === this.origin.name) body.name = "";
-      if (this.temp.level === this.origin.level) body.level = 0;
-      updateUser(this.origin.id, body)
+      const query = new URLSearchParams({
+        mapVerId: this.mapVerId,
+        versionName: this.curSearchList.versionName,
+        system: this.curSearchList.system,
+        stationName: this.curSearchList.stationName,
+      }).toString();
+      let params = `?${query}`;
+      this.temp["时间"] = this.fullFormatTime(this.temp["时间"]);
+      updateDataBackstage(params, this.temp)
         .then((res) => {
           if (res.code === 200) {
             this.$message.success(res.msg);

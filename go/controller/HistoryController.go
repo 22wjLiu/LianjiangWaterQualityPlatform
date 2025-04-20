@@ -198,12 +198,12 @@ func DataHistory(ctx *gin.Context) {
 // @param    ctx *gin.Context       接收一个上下文
 // @return   void
 func MapHistory(ctx *gin.Context) {
-	// TODO 获取登录用户
+	// 获取登录用户
 	tuser, _ := ctx.Get("user")
 
 	user := tuser.(model.User)
 
-	// TODO 安全等级在四级以下的用户不能查看历史操作记录
+	// 安全等级在四级以下的用户不能查看历史操作记录
 	if user.Level < 4 {
 		response.Fail(ctx, nil, "权限不足")
 		return

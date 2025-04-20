@@ -9,7 +9,7 @@
       >
       </el-input>
       <el-select
-        placeholder="请选择文件类型"
+        placeholder="请选择映射状态"
         v-model="searchList[1].value"
         clearable
       >

@@ -3,6 +3,7 @@
 </template>
 
 <script>
+import bus from "@/util/eventBus";
 export default {
   data() {
     return {
@@ -10,12 +11,13 @@ export default {
       myChart: null,
     };
   },
-  props: ["lineData", "indexOfTime", "labelList", "index"],
+  props: ["lineData", "indexOfTime", "options", "index"],
   methods: {
-    draw() {
-      // console.log(this.labelList);
+    initChart(){
       this.graph = this.$refs.line;
       this.myChart = this.$echarts.init(this.graph);
+    },
+    draw() {
       const options = {
         dataset: [
           {
@@ -23,7 +25,7 @@ export default {
           },
         ],
         title: {
-          text: this.labelList[this.index],
+          text: this.options[this.index].key,
           left: "center",
           textStyle: {
             fontFamily: "SimSun",
@@ -83,7 +85,7 @@ export default {
           lineStyle: {
             width: 1,
           },
-          name: this.labelList[this.index],
+          name: this.options[this.index].key,
           encode: {
             x: this.indexOfTime,
             y: this.indexOfTime === 0 ? 1 : 0,
@@ -117,8 +119,8 @@ export default {
     },
   },
   mounted() {
+    this.initChart();
     this.draw();
-    this.$emit("drawed", false);
   },
   activated() {
     this.myChart.resize();

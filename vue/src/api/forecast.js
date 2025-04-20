@@ -1,6 +1,13 @@
 import request from "@/util/request";
-export const forecast = (params) => {
-  return request.get(`/forecast?${params}`, {
+
+export const forecast = (start, end, pramas) => {
+  let path = "/forecast";
+
+  path += start ? `/${start}` : "/null";
+  path += end ? `/${end}` : "/null";
+  path += pramas;
+
+  return request.get(path, {
     needToken: true,
   });
 };

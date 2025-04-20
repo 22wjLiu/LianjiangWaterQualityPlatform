@@ -6,6 +6,12 @@ export const getLineData = (name, system, params) => {
   });
 };
 
+export const getFieldsLineData = (name, system, params) => {
+  return request.get(`/fieldsData/${name}/${system}?${params}`, {
+    needToken: true,
+  });
+};
+
 export const getPieData = (name, system, field) => {
   return request.get(`/data/rowall/${name}/${system}/${field}`, {
     needToken: true,

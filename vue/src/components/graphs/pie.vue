@@ -2,15 +2,6 @@
   <div class="container" :class="{ flex: showMd }">
     <div :class="{ left: showMd, container: !showMd }">
       <div class="select">
-        <!-- <span>监测范围内</span> -->
-        <el-select v-model="selectValue" @change="optionChange" size="small">
-          <el-option
-            v-for="item in options"
-            :key="item"
-            :label="item"
-            :value="item"
-          ></el-option>
-        </el-select>
         <!-- <span>的各水质等级所占时间的比例</span> -->
       </div>
       <div
@@ -32,8 +23,8 @@
 </template>
 
 <script>
-import { arr } from "@/assets/level";
 import mdfile from "@/assets/mdfile.md";
+import bus from "@/util/eventBus";
 export default {
   props: {
     pattern: {
@@ -43,29 +34,32 @@ export default {
   },
   data() {
     return {
-      data: arr,
-      selectValue: "浊度",
+      data: [],
+      myChart: null,
+      curOptions: [],
+      keySet: null,
       options: [
         "溶解氧",
-        "电导率",
-        "浊度",
+        "高锰酸盐指数",
+        "CODcr",
+        "化学需氧量",
+        "五日生化需氧量",
         "氨氮",
         "总磷",
-        "CODcr",
+        "总氮",
+        "铜",
+        "锌",
+        "氟化物",
+        "氰化物",
+        "硒",
+        "砷",
+        "汞",
+        "铬",
         "挥发酚",
-        "六价铬",
-        "铅",
-        "镉",
+        "石油类",
         "阴离子表面活性剂",
         "硫化物",
-        "时段累积流量",
-        "水位",
-        "断面平均流速",
-        "当前瞬时流速",
-        "瞬时流量",
-        "断面面积",
-        "水流量",
-        "总累积流量",
+        "粪大肠菌群"
       ],
     };
   },
@@ -87,14 +81,12 @@ export default {
     },
   },
   methods: {
-    draw() {
+    initChart() {
       const graph = this.$refs.pieGraph;
-      const myChart = this.$echarts.init(graph);
+      this.myChart = this.$echarts.init(graph);
+    },
+    draw() {
       const options = {
-        dataset: {
-          dimensions: ["水质等级", ...this.options],
-          source: this.data,
-        },
         // 图例组件。通过点击图例组件控制某个系列的显示与否
         legend: {
           type: "scroll",
@@ -107,6 +99,15 @@ export default {
             fontSize: 14,
           },
         },
+        title: {
+          text: "水质等级",
+          left: "center",
+          top: "10%",
+          textStyle: {
+            fontFamily: "SimSun",
+            fontSize: "16",
+          },
+        },
         grid: {
           left: "5%",
           right: "5%",
@@ -116,82 +117,60 @@ export default {
         series: [
           {
             type: "pie",
-            radius: [20, 100],
+            data: this.data,
+            radius: [0, '60%'],
             center: ["50%", "50%"],
             itemStyle: {
               borderRadius: 5,
             },
             label: {
-              show: this.showMd,
-              formatter: (params) => {
-                const str =
-                  " {b|" +
-                  params.name +
-                  "：\n}" +
-                  "{hr|}\n\n   天数：" +
-                  params.value[this.selectValue] +
-                  "    {per|" +
-                  params.percent +
-                  "%}    \n";
-                return str;
-              },
+              show: true,
               backgroundColor: "#F6F8FC",
-              borderColor: "#8C8D8E",
-              borderWidth: 1,
-              borderRadius: 4,
-              rich: {
-                b: {
-                  color: "#4C5058",
-                  fontSize: 12,
-                  fontWeight: "bold",
-                  lineHeight: 20,
-                  align: "center",
-                },
-                hr: {
-                  borderColor: "#8C8D8E",
-                  width: "100%",
-                  borderWidth: 1,
-                  height: 0,
-                },
-                per: {
-                  color: "#fff",
-                  backgroundColor: "#4C5058",
-                  padding: [3, 4],
-                  borderRadius: 4,
-                },
-              },
+              formatter: '{b}: ({d}%)',
             },
             labelLine: {
               show: true,
               showAbove: true,
               smooth: true,
-              length: 50,
-              length2: 50,
+              length: 10,
+              length2: 10,
             },
             emphasis: {
               label: {
                 show: true,
               },
             },
-            encode: {
-              itemName: "水质等级",
-              value: this.selectValue,
-            },
           },
         ],
       };
-      myChart.setOption(options);
+      this.myChart.setOption(options);
       // 当浏览器窗口缩放时，图标同时缩放
       window.addEventListener("resize", () => {
-        myChart.resize();
+        this.myChart.resize();
       });
     },
     optionChange() {
-      this.draw();
+      bus.$emit("requestByfield", this.curOptions);
     },
   },
   mounted() {
-    this.draw();
+    this.keySet = new Set(this.options);
+    this.initChart();
+    bus.$on("showLoading", () => {
+      this.myChart.showLoading();
+    });
+    bus.$on("curOptions", (val) => {
+      this.curOptions = val.filter(v => this.keySet.has(v.key));
+      if(this.curOptions){
+        this.optionChange();
+      }
+    });
+    bus.$on("getDataByField", (val) => {
+      this.data = val;
+      this.myChart.hideLoading();
+      this.draw();
+    });
+    bus.$emit("ready");
   },
   components: {
     mdfile,

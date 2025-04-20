@@ -3,5 +3,6 @@
 package dto
 
 type StationNameData struct {
-	Value string `json:"value" gorm:"column:station_name"`
+	System string `json:"system" gorm:"column:system"`
+	Name string `json:"name" gorm:"column:station_name"`
 }

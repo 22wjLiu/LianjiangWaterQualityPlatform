@@ -3,11 +3,17 @@
 package controller
 
 import (
+	"bytes"
+	"encoding/csv"
+	"encoding/json"
+	"os"
+	"os/exec"
 	"errors"
 	"lianjiang/common"
 	"lianjiang/model"
 	"lianjiang/util"
 	"lianjiang/dto"
+	"log"
 	"time"
 	"strconv"
 
@@ -25,19 +31,19 @@ import (
 func ShowStationsWhichHasData(ctx *gin.Context) {
 	db := common.GetDB()
 
-	var names []dto.StationNameData
+	var stationNames []dto.StationNameData
 
 	if err := db.
 		Table("data_table_infos").
-		Select("DISTINCT station_name").
+		Select("DISTINCT station_name, system").
 		Where("active = 1").
-		Find(&names).Error; err != nil {
+		Find(&stationNames).Error; err != nil {
 		response.Fail(ctx, nil, "获取站名失败")
 		return
 	}
 
 	// 返回映射类型
-	response.Success(ctx, gin.H{"names": names}, "请求成功")
+	response.Success(ctx, gin.H{"stationNames": stationNames}, "请求成功")
 }
 
 // // @title    ShowDataTimeRange
@@ -68,7 +74,7 @@ func ShowDataTimeRange(ctx *gin.Context) {
 	db := common.GetDB()
 
 	var tableInfo model.DataTableInfo
-	if err := db.Table("data_table_infos").Where("station_name = ? and system = ?", name, system).First(&tableInfo).Error; err != nil {
+	if err := db.Table("data_table_infos").Where("station_name = ? and system = ? and active = 1", name, system).First(&tableInfo).Error; err != nil {
 		response.Fail(ctx, nil, "数据丢失")
 		return
 	}
@@ -192,7 +198,7 @@ func ShowData(ctx *gin.Context) {
 		}
 		end = e.Format(util.ReadableTimeFormat)
 		if !startNotNull {
-			start = e.AddDate(0, -3, 0).Format(util.ReadableTimeFormat)
+			start = e.AddDate(0, -1, 0).Format(util.ReadableTimeFormat)
 		}
 		queryDB = queryDB.Where("time <= ?", end)
 	}
@@ -210,7 +216,7 @@ func ShowData(ctx *gin.Context) {
 		end = endTime.Format(util.ReadableTimeFormat)
 
 		if !startNotNull {
-			start = endTime.AddDate(0, -3, 0).Format(util.ReadableTimeFormat)
+			start = endTime.AddDate(0, -1, 0).Format(util.ReadableTimeFormat)
 		}
 	}
 
@@ -223,6 +229,151 @@ func ShowData(ctx *gin.Context) {
 
 	response.Success(ctx, gin.H{
 		"resultArr": resultArr,
+		"startTime": start,
+		"endTime": end,
+		}, "查找成功")
+}
+
+// @title    ShowFieldsData
+// @description   前台获取所有单字段点集数据
+// @param    ctx *gin.Context       接收一个上下文
+// @return   void
+func ShowFieldsData(ctx *gin.Context) {
+
+	// 获取站名
+	name := ctx.Params.ByName("name")
+
+	if name == "" {
+		response.Fail(ctx, nil, "不存在站名数据")
+		return
+	}
+
+	_, ok := util.StationMap.Get(name)
+
+	if !ok {
+		response.Fail(ctx, nil, "不存在站名"+name)
+		return
+	}
+
+	// 获取制度
+	system := ctx.Params.ByName("system")
+
+	_, ok = util.SysMap.Get(system)
+
+	if !ok {
+		response.Fail(ctx, nil, "不存在制度"+system)
+		return
+	}
+
+	db := common.GetDB()
+
+	var tableInfo model.DataTableInfo
+	if err := db.Table("data_table_infos").Where("station_name = ? and system = ? and active = 1", name, system).First(&tableInfo).Error; err != nil {
+		response.Fail(ctx, nil, "数据丢失")
+		return
+	}
+
+	var mapDetails []model.MapVersionDetail
+	if err := db.Model(&model.MapVersionDetail{}).Where("ver_id = ? and `table` = ?", tableInfo.MapVerId, "列字段映射").Find(&mapDetails).Error; err != nil {
+		response.Fail(ctx, nil, "查找映射信息错误")
+		return
+	}
+
+	// 查看是否存在该表
+	var exists bool
+	err := db.Raw(`
+	SELECT COUNT(*) > 0 FROM information_schema.tables 
+	WHERE table_schema = DATABASE() AND table_name = ?
+	`, tableInfo.DataTableName).Scan(&exists).Error
+
+	if err != nil {
+		response.Fail(ctx, nil, "数据丢失")
+		return
+	}
+
+	if !exists {
+		response.Fail(ctx, nil, "不存在对应表")
+		return
+	}
+
+	queryDB := common.GetDB().Table(tableInfo.DataTableName)
+
+	startNotNull := false
+	endNotNull := false
+
+	// 取出请求
+	start := ctx.DefaultQuery("start", "")
+	if start != "" && start != "null" {
+		startNotNull = true
+		s, err := time.Parse(util.ReadableTimeFormat, start)
+		if err != nil{
+			response.Fail(ctx, nil, "错误的数据开始时间")
+			return
+		}
+		start = s.Format(util.ReadableTimeFormat)
+		queryDB = queryDB.Where("time >= ?", start)
+	}
+
+	end := ctx.DefaultQuery("end", "")
+	if end != "" && end != "null" {
+		endNotNull = true
+		e, err := time.Parse(util.ReadableTimeFormat, end)
+		if err != nil{
+			response.Fail(ctx, nil, "错误的数据结束时间")
+			return
+		}
+		end = e.Format(util.ReadableTimeFormat)
+		if !startNotNull {
+			start = e.AddDate(0, -1, 0).Format(util.ReadableTimeFormat)
+		}
+		queryDB = queryDB.Where("time <= ?", end)
+	}
+
+	var endTime time.Time
+
+	if !endNotNull {
+		err = db.Table(tableInfo.DataTableName).Select("MAX(time) as max_time").Row().Scan(&endTime)
+
+		if err != nil {
+			response.Fail(ctx, nil, "查询时间失败")
+			return
+		}
+
+		end = endTime.Format(util.ReadableTimeFormat)
+
+		if !startNotNull {
+			start = endTime.AddDate(0, -1, 0).Format(util.ReadableTimeFormat)
+		}
+	}
+
+	// 查找对应数组
+	resultArr := make([][]map[string]interface{}, 0)
+	var mapInfos []dto.MapVersionInfos
+
+	queryDB = queryDB.Where("time >= ? and time <= ?", start, end)
+
+	for _, item := range mapDetails {
+		if item.Value == "time"{
+			continue
+		}
+		results := make([]map[string]interface{}, 0)
+		if err := queryDB.
+		Select("time, `" + item.Value + "`").
+		Scan(&results).
+		Error; err != nil {
+			response.Fail(ctx, nil, "查询数据失败")
+			return
+		}
+		resultArr = append(resultArr, results)
+		mapInfos = append(mapInfos, dto.MapVersionInfos{
+			Key: item.Key,
+			Value: item.Value,
+		})
+	}
+
+	response.Success(ctx, gin.H{
+		"resultArr": resultArr,
+		"mapInfos": mapInfos,
 		"startTime": start,
 		"endTime": end,
 		}, "查找成功")
@@ -332,13 +483,13 @@ func ShowDataBackStage(ctx *gin.Context) {
 		Error; err != nil {
 			response.Fail(ctx, nil, "查询映射信息错误")
 			return
-		}
+	}
 
 	var tableInfo model.DataTableInfo
 
 	err = db.
 		Model(&model.DataTableInfo{}).
-		Where("station_name = ? and map_ver_id = ?", stationName, mapVerId).
+		Where("station_name = ? and map_ver_id = ? and system = ?", stationName, mapVerId, system).
 		First(&tableInfo).
 		Error
 
@@ -360,7 +511,7 @@ func ShowDataBackStage(ctx *gin.Context) {
 		if err == nil{
 			db = db.Where("time >= ?", start)
 		} else {
-			response.Fail(ctx, nil, "错误的文件日志开始时间")
+			response.Fail(ctx, nil, "错误的数据开始时间")
 			return
 		}
 	}
@@ -369,10 +520,11 @@ func ShowDataBackStage(ctx *gin.Context) {
 
 	if end != "" && end != "null" {
 		end, err := time.Parse(util.ReadableTimeFormat, end)
+
 		if err == nil{
 			db = db.Where("time <= ?", end)
 		} else {
-			response.Fail(ctx, nil, "错误的数据日志结束时间")
+			response.Fail(ctx, nil, "错误的数据结束时间")
 			return
 		}
 	}
@@ -395,13 +547,23 @@ func ShowDataBackStage(ctx *gin.Context) {
 		selectSQl += "`" + item.Value + "` AS '" + item.Key + "' ,"
 	}
 
-	selectSQl = selectSQl[: len(selectSQl) - 2]
+	selectSQl = selectSQl[: len(selectSQl) - 1]
 
-	subQuery := db.
+	subQuery := common.GetDB().Table(tableInfo.DataTableName)
+
+	if start != "null" {
+		subQuery = subQuery.Where("time >= ?", start)
+	}
+
+	if end != "null" {
+		subQuery = subQuery.Where("time <= ?", end)
+	}
+
+	subQuery = subQuery.
 	Order("time DESC").
 	Limit(10000)
 
-	result := db.
+	result := common.GetDB().
 	Select(selectSQl).
 	Table("(?) as t", subQuery).
 	Limit(pageSize).
@@ -409,6 +571,7 @@ func ShowDataBackStage(ctx *gin.Context) {
 	Scan(&resultArr)
 	
 	if result.Error != nil {
+		log.Printf("查询失败：%v\n", err)
 		response.Fail(ctx, nil, "查询失败")
 		return
 	}
@@ -483,4 +646,225 @@ func DeleteDataBackStage(ctx *gin.Context){
 	}
 
 	response.Success(ctx, gin.H{"num": result.RowsAffected}, "删除成功")
+}
+
+// @title    UpdateDataBackStage
+// @description   更新后台数据
+// @param    ctx *gin.Context       接收一个上下文
+// @return   void
+func UpdateDataBackStage(ctx *gin.Context){
+	// 获取登录用户
+	tuser, _ := ctx.Get("user")
+
+	user := tuser.(model.User)
+	
+	// 安全等级在四级以下的用户不能查看历史操作记录
+	if user.Level < 4 {
+		response.Fail(ctx, nil, "权限不足")
+		return
+	}
+
+	mapVerId := ctx.DefaultQuery("mapVerId", "")
+
+	versionName := ctx.DefaultQuery("versionName", "")
+
+	stationName := ctx.DefaultQuery("stationName", "")
+
+	system := ctx.DefaultQuery("system", "")
+
+	if mapVerId == "" || versionName == "" || stationName == "" || system == "" {
+		response.Fail(ctx, nil, "参数错误")
+		return
+	}
+
+	// 解析请求体
+	resq := make(map[string]interface{})
+	if err := ctx.ShouldBindJSON(&resq); err != nil {
+		response.Fail(ctx, nil, "请求体参数解析错误")
+		return
+	}
+
+	var mapDetails []model.MapVersionDetail
+
+	db := common.GetDB()
+
+	if err := db.
+		Model(&model.MapVersionDetail{}).
+		Where("ver_id = ? and `table` = ?", mapVerId, "列字段映射").
+		Find(&mapDetails).
+		Error; err != nil {
+			response.Fail(ctx, nil, "查询映射信息错误")
+			return
+	}
+	
+	var tableInfo model.DataTableInfo
+
+	err := db.
+		Model(&model.DataTableInfo{}).
+		Where("station_name = ? and map_ver_id = ? and system = ?", stationName, mapVerId, system).
+		First(&tableInfo).
+		Error
+
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		response.Fail(ctx, nil, "站点数据不存在")
+		return
+	} else if err != nil {
+		response.Fail(ctx, nil, "查询站点数据错误")
+		return
+	}
+
+	updates := make(map[string]interface{})
+
+	for _, item := range mapDetails {
+		updates[item.Value] = resq[item.Key].(string)
+	}
+
+	if len(updates) == 0 {
+		response.Fail(ctx, nil, "无有效更新字段")
+		return
+	}
+
+	loc, _ := time.LoadLocation("Asia/Shanghai")
+	parsedTime, err := time.ParseInLocation(util.ReadableTimeFormat, resq["时间"].(string), loc)
+
+	log.Println(parsedTime)
+
+	tx := db.Begin()
+
+	if err := tx.Debug().
+	Table(tableInfo.DataTableName).
+	Where("time = ?", parsedTime).
+	Updates(updates).
+	Error; err != nil {
+		tx.Rollback()
+		response.Fail(ctx, nil, "更新失败")
+		return
+	}
+
+	if err := tx.
+	Model(&model.DataHistory{}).
+	Create(&model.DataHistory{
+		UserId: 			user.Id,
+		Time: 				model.Time(parsedTime),
+		StationName: 	stationName,
+		System: 			system,
+		VersionName:	versionName,
+		Option:				"更新",
+	}).Error; err != nil {
+		tx.Rollback()
+		response.Fail(ctx, nil, "更新失败")
+		return
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		response.Fail(ctx, nil, "更新失败")
+		return
+	}
+
+	response.Success(ctx, nil, "更新成功")
+}
+
+// @title    Forecast
+// @description   预测数据
+// @param    ctx *gin.Context       接收一个上下文
+// @return   void
+func Forecast(ctx *gin.Context) {
+	// 参数解析
+	startStr := ctx.Params.ByName("start")
+	endStr   := ctx.Params.ByName("end")
+
+	start, err := time.Parse(util.ForecastTimeFormat, startStr)
+	if startStr != "" && err != nil {
+			response.Fail(ctx, nil, "错误的数据开始时间")
+			return
+	}
+	end, err := time.Parse(util.ForecastTimeFormat, endStr)
+	if endStr != "" && err != nil {
+			response.Fail(ctx, nil, "错误的数据结束时间")
+			return
+	}
+
+	stationName := ctx.DefaultQuery("station_name", "")
+	system      := ctx.DefaultQuery("system", "")
+	field       := ctx.DefaultQuery("field", "")
+	if stationName == "" || system == "" || field == "" {
+			response.Fail(ctx, nil, "参数错误")
+			return
+	}
+
+	var freq string
+
+	if system == "小时制" {
+		freq = "H"
+	} else {
+		freq = "M"
+	}
+
+	db := common.GetDB()
+
+	var tableInfo model.DataTableInfo
+	if err := db.Table("data_table_infos").Where("station_name = ? and system = ? and active = 1", stationName, system).First(&tableInfo).Error; err != nil {
+		response.Fail(ctx, nil, "数据丢失")
+		return
+	}
+
+	resultArr := make([]map[string]interface{}, 0)
+
+	if err := db.
+		Table(tableInfo.DataTableName).
+		Select("time, " + field).
+		Order("time ASC").
+		Scan(&resultArr).
+		Error; err != nil {
+			response.Fail(ctx, nil, "查询错误")
+			return
+	}
+
+	tmp, err := os.CreateTemp("", "forecast-*.csv")
+	if err != nil {
+			response.Fail(ctx, nil, "临时文件创建失败")
+			return
+	}
+	defer os.Remove(tmp.Name()) // 用完即删
+
+	w := csv.NewWriter(tmp)
+	_ = w.Write([]string{"time", field}) // header
+	for _, r := range resultArr {
+			// 时间按与 Python 相同的格式输出
+			tStr := r["time"].(time.Time).Format(util.ForecastTimeFormat)
+			vStr := r[field].(string)
+			_ = w.Write([]string{tStr, vStr})
+	}
+	w.Flush()
+	tmp.Close()
+
+	// 调用python
+	python := "/home/liu/anaconda3/envs/forecast_env/bin/python"
+	script := "./foresee.py"
+	cmd := exec.Command(
+			python, script,
+			tmp.Name(),             																// CSV 文件
+			field,                  																// 预测字段
+			start.Format(util.ForecastTimeFormat),               		// 开始时间
+			end.Format(util.ForecastTimeFormat),                 		// 结束时间
+			freq,                   						 										// 频率
+	)
+
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+			log.Println("Python 调用失败: "+err.Error())
+			response.Fail(ctx, nil, "预测失败")
+			return
+	}
+
+	var result map[string]interface{}
+	if err := json.Unmarshal(out.Bytes(), &result); err != nil {
+			log.Println("解析预测结果失败")
+			response.Fail(ctx, nil, "预测失败")
+			return
+	}
+	response.Success(ctx, gin.H{"result": result}, "预测成功")
 }

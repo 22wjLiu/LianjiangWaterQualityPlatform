@@ -62,6 +62,9 @@ func CollectRoute(r *gin.Engine) *gin.Engine {
 	// 前台数据获取
 	r.GET("/data/:name/:system", middleware.AuthMiddleware(), controller.ShowData)
 
+	// 前台单字段数据获取
+	r.GET("/fieldsData/:name/:system", middleware.AuthMiddleware(), controller.ShowFieldsData)
+
 	// 获取站名、制度、映射版本名
 	r.GET("/dataTableInfos", middleware.AuthMiddleware(), controller.ShowStationMapSystem)
 
@@ -71,21 +74,14 @@ func CollectRoute(r *gin.Engine) *gin.Engine {
 	// 后台数据删除
 	r.DELETE("/dataBackStage", middleware.AuthMiddleware(), controller.DeleteDataBackStage)
 
+	// 后台数据更新
+	r.PUT("/dataBackStage", middleware.AuthMiddleware(), controller.UpdateDataBackStage)
+
 	// 获取已存数据站的站名
 	r.GET("/stationName", middleware.AuthMiddleware(), controller.ShowStationsWhichHasData)
 
 	// 获取数据最大最小时间
 	r.GET("/timeRange/:name/:system", middleware.AuthMiddleware(), controller.ShowDataTimeRange)
-
-	// // TODO 获取一对多的行字段
-	// r.GET("/data/rowall/:key/:name", middleware.AuthMiddleware(), controller.ShowRowAllData)
-
-	// // TODO 获取一对一的行字段
-	// r.GET("/data/rowone/:key/:name", middleware.AuthMiddleware(), controller.ShowRowOneData)
-
-	// TODO 数据删除
-
-	// TODO 数据恢复
 
 	// 查看用户的文件上传、删除记录
 	r.GET("/history/file/:start/:end", middleware.AuthMiddleware(), controller.FileHistory)
@@ -136,7 +132,7 @@ func CollectRoute(r *gin.Engine) *gin.Engine {
 	r.PUT("/updateMap/:id/:curMapId", middleware.AuthMiddleware(), controller.UpdateMap)	
 
 	// 预测
-	// r.GET("/forecast", middleware.AuthMiddleware(), controller.Forecast)
+	r.GET("/forecast/:start/:end", middleware.AuthMiddleware(), controller.Forecast)
 	
 	return r
 }

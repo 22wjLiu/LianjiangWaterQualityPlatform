@@ -10,7 +10,6 @@
 <script>
 import Sidebar from "@/components/graphs/sidebar.vue";
 import lineGraph from "@/components/graphs/lines.vue";
-import barGraph from "@/components/graphs/bar.vue";
 import pieGraph from "@/components/graphs/pie.vue";
 import bus from "@/util/eventBus";
 export default {
@@ -27,9 +26,6 @@ export default {
           this.componentName = "lineGraph";
           break;
         case 2:
-          this.componentName = "barGraph";
-          break;
-        case 3:
           this.componentName = "pieGraph";
           break;
       }
@@ -38,7 +34,6 @@ export default {
   components: {
     Sidebar,
     lineGraph,
-    barGraph,
     pieGraph,
   },
   activated() {

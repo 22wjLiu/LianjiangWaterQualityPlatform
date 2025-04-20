@@ -10,11 +10,6 @@
       <div class="text item">总磷：{{ phosphorus }}</div>
       <div class="text item">溶解氧：{{ dissolvedOxygen }}</div>
 
-      <el-divider></el-divider>
-      <el-button type="primary" size="small" @click="getDetails"
-        >查看断面数据详情</el-button
-      >
-
       <div slot="reference">
         <div :class="{ sample: true, active: active }">
           {{ level }}

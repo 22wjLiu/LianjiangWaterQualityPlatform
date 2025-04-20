@@ -1,23 +1,18 @@
 <template>
-  <div
-    class="container"
-    ref="lines"
-    v-loading="loading"
-    element-loading-text="数据量较大，请耐心等待"
-    :style="`width: ${containerWidth}`"
-  >
-    <h3>监测范围内水质基本参数均值&污染物监测指标均值</h3>
-    <el-divider></el-divider>
-    <LineGraph
-      v-for="(item, index) in lineData"
-      :key="index"
-      :id="labelList[index]"
-      :lineData="item"
-      :indexOfTime="indexOfTime"
-      :labelList="labelList"
-      :index="index"
-      @drawed="loadingChange"
-    ></LineGraph>
+  <div class="body" v-loading="loading" element-loading-text="数据量较大，请耐心等待">
+    <div class="container" :style="`width: ${containerWidth}`">
+      <h3>监测范围内水质基本参数均值&污染物监测指标均值</h3>
+      <el-divider></el-divider>
+      <LineGraph
+        v-for="(item, index) in lineData"
+        :key="item[0].time + index + item[item.length - 1].time"
+        :id="options[index].value"
+        :lineData="item"
+        :indexOfTime="indexOfTime"
+        :options="options"
+        :index="index"
+      ></LineGraph>
+    </div>
   </div>
 </template>
 
@@ -35,7 +30,7 @@ export default {
     return {
       lineData: [],
       indexOfTime: "",
-      labelList: [],
+      options: [],
       loading: true,
     };
   },
@@ -58,16 +53,12 @@ export default {
   components: {
     LineGraph,
   },
-  methods: {
-    loadingChange(val) {
-      this.loading = val;
-    },
-  },
   created() {
     bus.$on("lineData", (val) => {
-      this.lineData = val.data;
+      this.loading = false;
+      this.lineData = JSON.parse(JSON.stringify(val.data));
       this.indexOfTime = val.indexOfTime;
-      this.labelList = val.labelList;
+      this.options = JSON.parse(JSON.stringify(val.options));
     });
     bus.$on("reload", (val) => {
       this.loading = val;
@@ -80,6 +71,10 @@ export default {
 </script>
 
 <style lang="less" scoped>
+.body {
+  height: 100vh;
+}
+
 .container {
   h3 {
     text-align: center;

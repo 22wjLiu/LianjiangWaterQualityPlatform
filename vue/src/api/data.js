@@ -24,3 +24,9 @@ export const deleteDataBackStage = (body) => {
     needToken: true,
   });
 };
+
+export const updateDataBackstage = (pramas, body) => {
+  return request.put(`/dataBackStage${pramas}`, body, {
+    needToken: true,
+  });
+};

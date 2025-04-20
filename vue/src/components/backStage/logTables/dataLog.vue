@@ -79,6 +79,11 @@
       </el-table-column>
       <el-table-column prop="system" label="时间制" align="center" width="100">
       </el-table-column>
+      <el-table-column label="数据时间" align="center">
+        <template slot-scope="scope">
+          {{ formatTime(scope.row.time) }}
+        </template>
+      </el-table-column>
       <el-table-column label="操作方式" align="center" width="100">
         <template slot-scope="scope">
           <el-tag size="medium" :type="getTagType(scope.row.option)">
